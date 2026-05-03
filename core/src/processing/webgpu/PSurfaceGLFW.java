@@ -5,9 +5,13 @@ import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.system.Platform;
 
 import processing.core.PApplet;
+import processing.core.PConstants;
 import processing.core.PGraphics;
 import processing.core.PImage;
 import processing.core.PSurface;
+import processing.event.Event;
+import processing.event.KeyEvent;
+import processing.event.MouseEvent;
 
 import java.io.File;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -44,6 +48,25 @@ public class PSurfaceGLFW implements PSurface {
     private GLFWCharCallback charCallback;
     private GLFWCursorEnterCallback cursorEnterCallback;
     private GLFWWindowFocusCallback windowFocusCallback;
+
+    // Mouse + modifier state, tracked across GLFW callbacks because GLFW's
+    // cursor pos events don't carry button or modifier info.
+    private double lastCursorX;
+    private double lastCursorY;
+    private int currentMouseButton; // PConstants.LEFT/CENTER/RIGHT, or 0
+    private int currentModifiers;
+
+    // Cursor event ring. Cursor callbacks fire synchronously inside the
+    // macOS NSApp event loop during glfwPollEvents; on a high-poll-rate
+    // mouse this can be 100+ events per frame. We must keep the callback
+    // cheap (no FFI, no allocation) or glfwPollEvents will refill faster
+    // than it drains and never return. So we just stash (x, y) into a
+    // primitive-array buffer here, and runDrawLoop replays them through the
+    // FFI / postEvent path after glfwPollEvents returns. Mirrors the
+    // glfw-rs `flush_messages(&events)` pattern used by the Rust runner.
+    private double[] cursorXs = new double[256];
+    private double[] cursorYs = new double[256];
+    private int cursorCount;
 
     public PSurfaceGLFW(PGraphics graphics) {
         this.graphics = graphics;
@@ -100,81 +123,158 @@ public class PSurfaceGLFW implements PSurface {
     protected void initListeners() {
         long surfaceId = getSurfaceId();
 
-        framebufferSizeCallback = GLFW.glfwSetFramebufferSizeCallback(window,
-                (window, width, height) -> {
-                    if (sketch != null) {
-                        sketch.postWindowResized(width, height);
-                    }
-                });
+        // NOTE: GLFW.glfwSet*Callback returns the *previous* callback, not the
+        // new one. We must keep a strong Java reference to each new callback
+        // wrapper or it will be GC'd while still registered with native GLFW,
+        // and events will silently stop firing. So we explicitly create the
+        // wrapper, store it in a field, then register it.
 
-        windowPosCallback = GLFW.glfwSetWindowPosCallback(window,
-                (window, xpos, ypos) -> {
-                    if (sketch != null) {
-                        sketch.postWindowMoved(xpos, ypos);
-                    }
-                });
+        framebufferSizeCallback = GLFWFramebufferSizeCallback.create((win, w, h) -> {
+            if (sketch != null) sketch.postWindowResized(w, h);
+        });
+        GLFW.glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
-        cursorPosCallback = GLFW.glfwSetCursorPosCallback(window,
-                (window, xpos, ypos) -> {
-                    if (surfaceId != 0) {
-                        PWebGPU.inputMouseMove(surfaceId, (float) xpos, (float) ypos);
-                    }
-                });
+        windowPosCallback = GLFWWindowPosCallback.create((win, xpos, ypos) -> {
+            if (sketch != null) sketch.postWindowMoved(xpos, ypos);
+        });
+        GLFW.glfwSetWindowPosCallback(window, windowPosCallback);
 
-        mouseButtonCallback = GLFW.glfwSetMouseButtonCallback(window,
-                (window, button, action, mods) -> {
-                    if (surfaceId != 0) {
-                        byte btn = switch (button) {
-                            case GLFW.GLFW_MOUSE_BUTTON_LEFT -> 0;
-                            case GLFW.GLFW_MOUSE_BUTTON_MIDDLE -> 1;
-                            case GLFW.GLFW_MOUSE_BUTTON_RIGHT -> 2;
-                            default -> -1;
-                        };
-                        if (btn >= 0) {
-                            PWebGPU.inputMouseButton(surfaceId, btn, action == GLFW.GLFW_PRESS);
-                        }
-                    }
-                });
+        // GLFW callbacks fire synchronously on the main thread during
+        // glfwPollEvents, which is the same thread that runs the draw loop.
+        // No queue needed — we can dispatch events directly to the sketch.
 
-        scrollCallback = GLFW.glfwSetScrollCallback(window,
-                (window, xoffset, yoffset) -> {
-                    if (surfaceId != 0) {
-                        PWebGPU.inputScroll(surfaceId, (float) xoffset, (float) yoffset);
-                    }
-                });
+        // Cursor callback: append (x, y) to a primitive buffer. NO FFI, no
+        // allocation. runDrawLoop drains and forwards each entry, mirroring
+        // the Rust runner's `flush_messages(&events)` pattern.
+        cursorPosCallback = GLFWCursorPosCallback.create((win, xpos, ypos) -> {
+            int n = cursorCount;
+            if (n >= cursorXs.length) {
+                int newLen = cursorXs.length * 2;
+                double[] nx = new double[newLen];
+                double[] ny = new double[newLen];
+                System.arraycopy(cursorXs, 0, nx, 0, n);
+                System.arraycopy(cursorYs, 0, ny, 0, n);
+                cursorXs = nx;
+                cursorYs = ny;
+            }
+            cursorXs[n] = xpos;
+            cursorYs[n] = ypos;
+            cursorCount = n + 1;
+            lastCursorX = xpos;
+            lastCursorY = ypos;
+        });
+        GLFW.glfwSetCursorPosCallback(window, cursorPosCallback);
 
-        keyCallback = GLFW.glfwSetKeyCallback(window,
-                (window, key, scancode, action, mods) -> {
-                    if (surfaceId != 0 && action != GLFW.GLFW_REPEAT) {
-                        PWebGPU.inputKey(surfaceId, key, action == GLFW.GLFW_PRESS);
-                    }
-                });
+        mouseButtonCallback = GLFWMouseButtonCallback.create((win, button, action, mods) -> {
+            int peButton = switch (button) {
+                case GLFW.GLFW_MOUSE_BUTTON_LEFT -> PConstants.LEFT;
+                case GLFW.GLFW_MOUSE_BUTTON_MIDDLE -> PConstants.CENTER;
+                case GLFW.GLFW_MOUSE_BUTTON_RIGHT -> PConstants.RIGHT;
+                default -> 0;
+            };
+            currentModifiers = glfwModsToProcessing(mods);
+            boolean pressed = (action == GLFW.GLFW_PRESS);
+            if (surfaceId != 0 && peButton != 0) {
+                byte btn = (byte) (peButton == PConstants.LEFT ? 0
+                        : peButton == PConstants.CENTER ? 1 : 2);
+                PWebGPU.inputMouseButton(surfaceId, btn, pressed);
+            }
+            if (peButton != 0) {
+                if (pressed) currentMouseButton = peButton;
+                if (sketch != null) {
+                    int peAction = pressed ? MouseEvent.PRESS : MouseEvent.RELEASE;
+                    sketch.postEvent(new MouseEvent(null, System.currentTimeMillis(),
+                            peAction, currentModifiers,
+                            (int) lastCursorX, (int) lastCursorY, peButton, 1));
+                }
+                if (!pressed) currentMouseButton = 0;
+            }
+        });
+        GLFW.glfwSetMouseButtonCallback(window, mouseButtonCallback);
 
-        charCallback = GLFW.glfwSetCharCallback(window,
-                (window, codepoint) -> {
-                    // char callback doesn't give us a key code, so pass 0
-                    if (surfaceId != 0) {
-                        PWebGPU.inputChar(surfaceId, 0, codepoint);
-                    }
-                });
+        scrollCallback = GLFWScrollCallback.create((win, xoffset, yoffset) -> {
+            if (surfaceId != 0) {
+                PWebGPU.inputScroll(surfaceId, (float) xoffset, (float) yoffset);
+            }
+            if (sketch != null) {
+                // Processing wheel uses negative-up convention; GLFW yoffset
+                // is positive-up, so flip.
+                sketch.postEvent(new MouseEvent(null, System.currentTimeMillis(),
+                        MouseEvent.WHEEL, currentModifiers,
+                        (int) lastCursorX, (int) lastCursorY, 0,
+                        (int) -yoffset));
+            }
+        });
+        GLFW.glfwSetScrollCallback(window, scrollCallback);
 
-        cursorEnterCallback = GLFW.glfwSetCursorEnterCallback(window,
-                (window, entered) -> {
-                    if (surfaceId != 0) {
-                        if (entered) {
-                            PWebGPU.inputCursorEnter(surfaceId);
-                        } else {
-                            PWebGPU.inputCursorLeave(surfaceId);
-                        }
-                    }
-                });
+        keyCallback = GLFWKeyCallback.create((win, key, scancode, action, mods) -> {
+            currentModifiers = glfwModsToProcessing(mods);
+            if (surfaceId != 0 && action != GLFW.GLFW_REPEAT) {
+                PWebGPU.inputKey(surfaceId, key, action == GLFW.GLFW_PRESS);
+            }
+            if (sketch != null && action != GLFW.GLFW_REPEAT) {
+                int peAction = (action == GLFW.GLFW_PRESS) ? KeyEvent.PRESS : KeyEvent.RELEASE;
+                sketch.postEvent(new KeyEvent(null, System.currentTimeMillis(),
+                        peAction, currentModifiers,
+                        glfwKeyToChar(key), key));
+            }
+        });
+        GLFW.glfwSetKeyCallback(window, keyCallback);
 
-        windowFocusCallback = GLFW.glfwSetWindowFocusCallback(window,
-                (window, focused) -> {
-                    if (surfaceId != 0) {
-                        PWebGPU.inputFocus(surfaceId, focused);
-                    }
-                });
+        charCallback = GLFWCharCallback.create((win, codepoint) -> {
+            if (surfaceId != 0) {
+                PWebGPU.inputChar(surfaceId, 0, codepoint);
+            }
+            if (sketch != null) {
+                sketch.postEvent(new KeyEvent(null, System.currentTimeMillis(),
+                        KeyEvent.TYPE, currentModifiers,
+                        (char) codepoint, 0));
+            }
+        });
+        GLFW.glfwSetCharCallback(window, charCallback);
+
+        cursorEnterCallback = GLFWCursorEnterCallback.create((win, entered) -> {
+            if (surfaceId != 0) {
+                if (entered) PWebGPU.inputCursorEnter(surfaceId);
+                else PWebGPU.inputCursorLeave(surfaceId);
+            }
+        });
+        GLFW.glfwSetCursorEnterCallback(window, cursorEnterCallback);
+
+        windowFocusCallback = GLFWWindowFocusCallback.create((win, focused) -> {
+            if (surfaceId != 0) PWebGPU.inputFocus(surfaceId, focused);
+        });
+        GLFW.glfwSetWindowFocusCallback(window, windowFocusCallback);
+    }
+
+    private static int glfwModsToProcessing(int mods) {
+        int m = 0;
+        if ((mods & GLFW.GLFW_MOD_SHIFT) != 0) m |= Event.SHIFT;
+        if ((mods & GLFW.GLFW_MOD_CONTROL) != 0) m |= Event.CTRL;
+        if ((mods & GLFW.GLFW_MOD_ALT) != 0) m |= Event.ALT;
+        if ((mods & GLFW.GLFW_MOD_SUPER) != 0) m |= Event.META;
+        return m;
+    }
+
+    /**
+     * Translate a GLFW key code to the {@code char} that PApplet expects.
+     * For printable ASCII keys, GLFW uses the uppercase keysym which already
+     * matches PApplet's convention. For non-printable keys (arrows, F-keys,
+     * etc.) we report {@link PConstants#CODED} so the sketch knows to look at
+     * {@code keyCode} instead.
+     */
+    private static char glfwKeyToChar(int glfwKey) {
+        if (glfwKey >= 32 && glfwKey < 127) {
+            return (char) glfwKey;
+        }
+        return switch (glfwKey) {
+            case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> '\n';
+            case GLFW.GLFW_KEY_TAB -> '\t';
+            case GLFW.GLFW_KEY_BACKSPACE -> '\b';
+            case GLFW.GLFW_KEY_ESCAPE -> 27;
+            case GLFW.GLFW_KEY_DELETE -> 127;
+            default -> PConstants.CODED;
+        };
     }
 
     private long getSurfaceId() {
@@ -388,6 +488,11 @@ public class PSurfaceGLFW implements PSurface {
 
     protected void runDrawLoop() {
         GLFW.glfwShowWindow(window);
+        // On macOS, when the JVM is launched as a child of another GUI
+        // process, the new NSApplication is not activated by default. The
+        // window appears but never receives input events past a brief
+        // initial spurt. Force activation here.
+        GLFW.glfwFocusWindow(window);
 
         long beforeTime = System.nanoTime();
         long overSleepTime = 0L;
@@ -398,12 +503,36 @@ public class PSurfaceGLFW implements PSurface {
             checkPause();
 
             GLFW.glfwPollEvents();
-            PWebGPU.inputFlush();
 
             if (GLFW.glfwWindowShouldClose(window)) {
                 sketch.exit();
                 break;
             }
+
+            // Drain buffered cursor events. Each one is forwarded to native
+            // input state (so bevy systems see every move) and posted as a
+            // Processing MouseEvent (so the sketch's mouseMoved/mouseDragged
+            // fires per event). Mirrors flush_messages in processing_glfw.
+            int n = cursorCount;
+            if (n > 0) {
+                long sid = getSurfaceId();
+                long now = System.currentTimeMillis();
+                for (int i = 0; i < n; i++) {
+                    float x = (float) cursorXs[i];
+                    float y = (float) cursorYs[i];
+                    if (sid != 0) {
+                        PWebGPU.inputMouseMove(sid, x, y);
+                    }
+                    if (sketch != null) {
+                        int action = (currentMouseButton == 0) ? MouseEvent.MOVE : MouseEvent.DRAG;
+                        sketch.postEvent(new MouseEvent(null, now, action, currentModifiers,
+                                (int) x, (int) y, currentMouseButton, 0));
+                    }
+                }
+                cursorCount = 0;
+            }
+
+            PWebGPU.inputFlush();
 
             if (!sketch.finished) {
                 sketch.handleDraw();

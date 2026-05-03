@@ -249,7 +249,10 @@ public class PGraphicsWebGPU extends PGraphics {
         if (graphicsId == 0) {
             return;
         }
-        PWebGPU.ellipse(graphicsId, a, b, c, d);
+        // PGraphics.ellipse() applies ellipseMode and passes corner-form
+        // (top-left + width/height) to ellipseImpl. The native call expects
+        // center coords, so convert back here.
+        PWebGPU.ellipse(graphicsId, a + c / 2f, b + d / 2f, c, d);
     }
 
     @Override
@@ -482,7 +485,29 @@ public class PGraphicsWebGPU extends PGraphics {
             return;
         }
         PWebGPU.mode3d(graphicsId);
-        // TODO: camera up vector is not yet exposed by libprocessing FFI
+        PWebGPU.transformSetPosition(graphicsId, eyeX, eyeY, eyeZ);
+        PWebGPU.transformLookAt(graphicsId, centerX, centerY, centerZ);
+    }
+
+    public void cameraPosition(float x, float y, float z) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.transformSetPosition(graphicsId, x, y, z);
+    }
+
+    public void cameraLookAt(float x, float y, float z) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.transformLookAt(graphicsId, x, y, z);
+    }
+
+    public void mode3d() {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.mode3d(graphicsId);
     }
 
     @Override
@@ -500,6 +525,46 @@ public class PGraphicsWebGPU extends PGraphics {
             return;
         }
         PWebGPU.ortho(graphicsId, left, right, bottom, top, near, far);
+    }
+
+    // ── Lights ───────────────────────────────────────────────────────────
+
+    @Override
+    public void directionalLight(float r, float g, float b,
+                                 float nx, float ny, float nz) {
+        if (graphicsId == 0) return;
+        long light = PWebGPU.lightCreateDirectional(graphicsId, r, g, b, 1.0f, 600.0f);
+        PWebGPU.transformSetRotation(light, nx, ny, nz);
+    }
+
+    @Override
+    public void pointLight(float r, float g, float b,
+                           float x, float y, float z) {
+        if (graphicsId == 0) return;
+        long light = PWebGPU.lightCreatePoint(graphicsId, r, g, b, 1.0f, 100000.0f, 800.0f, 0.0f);
+        PWebGPU.transformSetPosition(light, x, y, z);
+    }
+
+    public long directionalLight(float r, float g, float b, float illuminance) {
+        if (graphicsId == 0) return 0;
+        return PWebGPU.lightCreateDirectional(graphicsId, r, g, b, 1.0f, illuminance);
+    }
+
+    public long pointLight(float r, float g, float b,
+                           float intensity, float range, float radius,
+                           float x, float y, float z) {
+        if (graphicsId == 0) return 0;
+        long light = PWebGPU.lightCreatePoint(graphicsId, r, g, b, 1.0f, intensity, range, radius);
+        PWebGPU.transformSetPosition(light, x, y, z);
+        return light;
+    }
+
+    public long spotLight(float r, float g, float b,
+                          float intensity, float range, float radius,
+                          float innerAngle, float outerAngle) {
+        if (graphicsId == 0) return 0;
+        return PWebGPU.lightCreateSpot(graphicsId, r, g, b, 1.0f,
+                intensity, range, radius, innerAngle, outerAngle);
     }
 
     // ── Images / shapes ─────────────────────────────────────────────────
@@ -523,6 +588,81 @@ public class PGraphicsWebGPU extends PGraphics {
             return;
         }
         PWebGPU.model(graphicsId, geometryId);
+    }
+
+    public void model(Geometry geometry) {
+        model(geometry.id());
+    }
+
+    // ── Particles ──────────────────────────────────────────────────────��
+
+    public void particles(Particles p, Geometry shape) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.particlesDraw(graphicsId, p.id(), shape.id());
+    }
+
+    public void fill(Buffer colorBuffer) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.fillBuffer(graphicsId, colorBuffer.id());
+    }
+
+    // ── Materials ───────────────────────────────────────────────────────
+
+    public void useMaterial(Material mat) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.material(graphicsId, mat.id());
+    }
+
+    // ── Picking / unproject ──────────────────────────────────────────────
+
+    /**
+     * Inverse of {@link #screenX}: returns the world-space X coordinate of the
+     * point at screen pixel ({@code sx}, {@code sy}) with normalized depth
+     * {@code depth} in {@code [0, 1]} (0 = near plane, 1 = far plane).
+     */
+    public float worldX(float sx, float sy, float depth) {
+        if (graphicsId == 0) return 0;
+        return PWebGPU.graphicsWorldFromScreen(graphicsId, sx, sy, depth)[0];
+    }
+
+    public float worldY(float sx, float sy, float depth) {
+        if (graphicsId == 0) return 0;
+        return PWebGPU.graphicsWorldFromScreen(graphicsId, sx, sy, depth)[1];
+    }
+
+    public float worldZ(float sx, float sy, float depth) {
+        if (graphicsId == 0) return 0;
+        return PWebGPU.graphicsWorldFromScreen(graphicsId, sx, sy, depth)[2];
+    }
+
+    // ── Post-processing ──────────────────────────────────────────────────
+
+    /**
+     * Enable bloom post-processing. `intensity` controls bloom strength
+     * (additive — values above 1.0 are valid). `threshold` is the HDR
+     * brightness floor: pixels below this value bloom weakly, so a
+     * threshold of ~1.0 isolates bloom to HDR-bright pixels (e.g. emissive
+     * surfaces) for a more dramatic effect.
+     */
+    public void bloom(float intensity, float threshold) {
+        if (graphicsId == 0) return;
+        PWebGPU.graphicsSetBloom(graphicsId, intensity, threshold);
+    }
+
+    /** Convenience: bloom with no threshold (whole scene contributes). */
+    public void bloom(float intensity) {
+        bloom(intensity, 0.0f);
+    }
+
+    public void noBloom() {
+        if (graphicsId == 0) return;
+        PWebGPU.graphicsRemoveBloom(graphicsId);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────

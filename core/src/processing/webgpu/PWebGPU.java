@@ -515,6 +515,274 @@ public class PWebGPU {
         checkError();
     }
 
+    public static void materialSetAlbedoColor(long matId, float r, float g, float b, float a) {
+        processing_material_set_albedo_color(matId, r, g, b, a);
+        checkError();
+    }
+
+    public static void materialSetAlbedoBuffer(long matId, long bufferId) {
+        processing_material_set_albedo_buffer(matId, bufferId);
+        checkError();
+    }
+
+    public static void materialSetEmissiveBuffer(long matId, long bufferId) {
+        processing_material_set_emissive_buffer(matId, bufferId);
+        checkError();
+    }
+
+    // ── Bloom ───────────────────────────────────────────────────────────
+
+    public static void graphicsSetBloom(long graphicsId, float intensity, float threshold) {
+        processing_graphics_set_bloom(graphicsId, intensity, threshold);
+        checkError();
+    }
+
+    public static void graphicsRemoveBloom(long graphicsId) {
+        processing_graphics_remove_bloom(graphicsId);
+        checkError();
+    }
+
+    /**
+     * Unproject a screen coordinate to world space. `depth` is in `[0, 1]`
+     * where 0 = near plane, 1 = far plane. Returns `{ x, y, z }`.
+     */
+    public static float[] graphicsWorldFromScreen(long graphicsId, float sx, float sy, float depth) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment outX = arena.allocate(4);
+            MemorySegment outY = arena.allocate(4);
+            MemorySegment outZ = arena.allocate(4);
+            processing_graphics_world_from_screen(graphicsId, sx, sy, depth, outX, outY, outZ);
+            checkError();
+            return new float[] { outX.get(java.lang.foreign.ValueLayout.JAVA_FLOAT, 0),
+                                 outY.get(java.lang.foreign.ValueLayout.JAVA_FLOAT, 0),
+                                 outZ.get(java.lang.foreign.ValueLayout.JAVA_FLOAT, 0) };
+        }
+    }
+
+    // ── Shaders ─────────────────────────────────────────────────────────
+
+    public static long shaderCreate(String source) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment sourceSegment = arena.allocateFrom(source);
+            long id = processing_shader_create(sourceSegment);
+            checkError();
+            return id;
+        }
+    }
+
+    public static long shaderLoad(String path) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment pathSegment = arena.allocateFrom(path);
+            long id = processing_shader_load(pathSegment);
+            checkError();
+            return id;
+        }
+    }
+
+    public static void shaderDestroy(long shaderId) {
+        processing_shader_destroy(shaderId);
+        checkError();
+    }
+
+    // ── Buffers ─────────────────────────────────────────────────────────
+
+    public static long bufferCreate(long size) {
+        long id = processing_buffer_create(size);
+        checkError();
+        return id;
+    }
+
+    public static long bufferCreateWithData(byte[] data) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment dataSegment = arena.allocateFrom(java.lang.foreign.ValueLayout.JAVA_BYTE, data);
+            long id = processing_buffer_create_with_data(dataSegment, data.length);
+            checkError();
+            return id;
+        }
+    }
+
+    public static void bufferWrite(long bufferId, byte[] data) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment dataSegment = arena.allocateFrom(java.lang.foreign.ValueLayout.JAVA_BYTE, data);
+            processing_buffer_write(bufferId, dataSegment, data.length);
+            checkError();
+        }
+    }
+
+    public static long bufferSize(long bufferId) {
+        long size = processing_buffer_size(bufferId);
+        checkError();
+        return size;
+    }
+
+    public static byte[] bufferRead(long bufferId) {
+        long size = processing_buffer_size(bufferId);
+        checkError();
+        if (size == 0) return new byte[0];
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment out = arena.allocate(java.lang.foreign.ValueLayout.JAVA_BYTE, size);
+            long actual = processing_buffer_read(bufferId, out, size);
+            checkError();
+            return out.asSlice(0, actual).toArray(java.lang.foreign.ValueLayout.JAVA_BYTE);
+        }
+    }
+
+    public static void bufferDestroy(long bufferId) {
+        processing_buffer_destroy(bufferId);
+        checkError();
+    }
+
+    // ── Compute ─────────────────────────────────────────────────────────
+
+    public static long computeCreate(long shaderId) {
+        long id = processing_compute_create(shaderId);
+        checkError();
+        return id;
+    }
+
+    public static void computeSetFloat(long computeId, String name, float value) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment nameSegment = arena.allocateFrom(name);
+            processing_compute_set_float(computeId, nameSegment, value);
+            checkError();
+        }
+    }
+
+    public static void computeSetFloat3(long computeId, String name, float x, float y, float z) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment nameSegment = arena.allocateFrom(name);
+            processing_compute_set_float3(computeId, nameSegment, x, y, z);
+            checkError();
+        }
+    }
+
+    public static void computeSetBuffer(long computeId, String name, long bufferId) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment nameSegment = arena.allocateFrom(name);
+            processing_compute_set_buffer(computeId, nameSegment, bufferId);
+            checkError();
+        }
+    }
+
+    public static void computeDispatch(long computeId, int x, int y, int z) {
+        processing_compute_dispatch(computeId, x, y, z);
+        checkError();
+    }
+
+    public static void computeDestroy(long computeId) {
+        processing_compute_destroy(computeId);
+        checkError();
+    }
+
+    // ── Particles ───────────────────────────────────────────────────────
+
+    public static long geometryAttributeRotation() {
+        return processing_geometry_attribute_rotation();
+    }
+
+    public static long geometryAttributeScale() {
+        return processing_geometry_attribute_scale();
+    }
+
+    public static long geometryAttributeDead() {
+        return processing_geometry_attribute_dead();
+    }
+
+    public static byte geometryAttributeFormat(long attrId) {
+        byte fmt = processing_geometry_attribute_format(attrId);
+        checkError();
+        return fmt;
+    }
+
+    public static String geometryAttributeName(long attrId) {
+        try (Arena arena = Arena.ofConfined()) {
+            long needed = processing_geometry_attribute_name(attrId, NULL, 0);
+            checkError();
+            if (needed == 0) return "";
+            MemorySegment buf = arena.allocate(java.lang.foreign.ValueLayout.JAVA_BYTE, needed + 1);
+            processing_geometry_attribute_name(attrId, buf, needed + 1);
+            checkError();
+            return buf.getString(0);
+        }
+    }
+
+    public static long particlesCreate(int capacity, long[] attrIds) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment attrSegment = arena.allocateFrom(java.lang.foreign.ValueLayout.JAVA_LONG, attrIds);
+            long id = processing_particles_create(capacity, attrSegment, attrIds.length);
+            checkError();
+            return id;
+        }
+    }
+
+    public static long particlesCreateFromGeometry(long geometryId, long[] attrIds) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment attrSegment = arena.allocateFrom(java.lang.foreign.ValueLayout.JAVA_LONG, attrIds);
+            long id = processing_particles_create_from_geometry(geometryId, attrSegment, attrIds.length);
+            checkError();
+            return id;
+        }
+    }
+
+    public static void particlesDestroy(long particlesId) {
+        processing_particles_destroy(particlesId);
+        checkError();
+    }
+
+    public static int particlesCapacity(long particlesId) {
+        int cap = processing_particles_capacity(particlesId);
+        checkError();
+        return cap;
+    }
+
+    public static long particlesBuffer(long particlesId, long attrId) {
+        long bufferId = processing_particles_buffer(particlesId, attrId);
+        checkError();
+        return bufferId;
+    }
+
+    public static void particlesEmit(long particlesId, int n, long[] attrIds, byte[] data, long[] attrByteLengths) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment attrSegment = arena.allocateFrom(java.lang.foreign.ValueLayout.JAVA_LONG, attrIds);
+            MemorySegment dataSegment = arena.allocateFrom(java.lang.foreign.ValueLayout.JAVA_BYTE, data);
+            MemorySegment lensSegment = arena.allocateFrom(java.lang.foreign.ValueLayout.JAVA_LONG, attrByteLengths);
+            processing_particles_emit(particlesId, n, attrSegment, dataSegment, lensSegment, attrIds.length);
+            checkError();
+        }
+    }
+
+    public static void particlesEmitGpu(long particlesId, int n, long computeId) {
+        processing_particles_emit_gpu(particlesId, n, computeId);
+        checkError();
+    }
+
+    public static long particlesKernelNoise() {
+        long id = processing_particles_kernel_noise();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelTransform() {
+        long id = processing_particles_kernel_transform();
+        checkError();
+        return id;
+    }
+
+    public static void particlesApply(long particlesId, long computeId) {
+        processing_particles_apply(particlesId, computeId);
+        checkError();
+    }
+
+    public static void particlesDraw(long graphicsId, long particlesId, long geometryId) {
+        processing_particles_draw(graphicsId, particlesId, geometryId);
+        checkError();
+    }
+
+    public static void fillBuffer(long graphicsId, long bufferId) {
+        processing_fill_buffer(graphicsId, bufferId);
+        checkError();
+    }
+
     // ── Images ──────────────────────────────────────────────────────────
 
     public static long imageCreate(int width, int height, byte[] data) {

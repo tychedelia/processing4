@@ -24,8 +24,21 @@ public class Compute {
         PWebGPU.computeSetFloat3(id, name, x, y, z);
     }
 
+    /**
+     * Set a {@code u32} uniform. Use this for shader fields like enum
+     * selectors / mode flags. Java's {@code int} literals (e.g. {@code 3})
+     * resolve to this overload before being promoted to float.
+     */
+    public void set(String name, int value) {
+        PWebGPU.computeSetUInt(id, name, value);
+    }
+
     public void set(String name, Buffer buffer) {
         PWebGPU.computeSetBuffer(id, name, buffer.id());
+    }
+
+    public void set(String name, PImageWebGPU image) {
+        PWebGPU.computeSetTexture(id, name, image.getId());
     }
 
     public void dispatch(int x, int y, int z) {

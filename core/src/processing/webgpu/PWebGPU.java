@@ -656,10 +656,34 @@ public class PWebGPU {
         }
     }
 
+    public static void computeSetUInt(long computeId, String name, int value) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment nameSegment = arena.allocateFrom(name);
+            processing_compute_set_uint(computeId, nameSegment, value);
+            checkError();
+        }
+    }
+
+    public static void computeSetInt(long computeId, String name, int value) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment nameSegment = arena.allocateFrom(name);
+            processing_compute_set_int(computeId, nameSegment, value);
+            checkError();
+        }
+    }
+
     public static void computeSetBuffer(long computeId, String name, long bufferId) {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment nameSegment = arena.allocateFrom(name);
             processing_compute_set_buffer(computeId, nameSegment, bufferId);
+            checkError();
+        }
+    }
+
+    public static void computeSetTexture(long computeId, String name, long imageId) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment nameSegment = arena.allocateFrom(name);
+            processing_compute_set_texture(computeId, nameSegment, imageId);
             checkError();
         }
     }
@@ -768,6 +792,84 @@ public class PWebGPU {
         return id;
     }
 
+    public static long particlesKernelAttract() {
+        long id = processing_particles_kernel_attract();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelDrag() {
+        long id = processing_particles_kernel_drag();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelVortex() {
+        long id = processing_particles_kernel_vortex();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelBounds() {
+        long id = processing_particles_kernel_bounds();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelImpulse() {
+        long id = processing_particles_kernel_impulse();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelFlock() {
+        long id = processing_particles_kernel_flock();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelOrient() {
+        long id = processing_particles_kernel_orient();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelField() {
+        long id = processing_particles_kernel_field();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelAttrLinear() {
+        long id = processing_particles_kernel_attr_linear();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelAttrCombine() {
+        long id = processing_particles_kernel_attr_combine();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelAttrMix() {
+        long id = processing_particles_kernel_attr_mix();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelAttrLookup1D() {
+        long id = processing_particles_kernel_attr_lookup1d();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelAttrLookup2D() {
+        long id = processing_particles_kernel_attr_lookup2d();
+        checkError();
+        return id;
+    }
+
     public static void particlesApply(long particlesId, long computeId) {
         processing_particles_apply(particlesId, computeId);
         checkError();
@@ -789,6 +891,16 @@ public class PWebGPU {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment dataSegment = arena.allocateFrom(java.lang.foreign.ValueLayout.JAVA_BYTE, data);
             long imageId = processing_image_create(width, height, dataSegment, data.length);
+            checkError();
+            return imageId;
+        }
+    }
+
+    public static long imageCreateHDR(int width, int height, float[] data) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment dataSegment =
+                arena.allocateFrom(java.lang.foreign.ValueLayout.JAVA_FLOAT, data);
+            long imageId = processing_image_create_hdr(width, height, dataSegment, data.length);
             checkError();
             return imageId;
         }

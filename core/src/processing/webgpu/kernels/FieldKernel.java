@@ -15,11 +15,9 @@ import processing.webgpu.PWebGPU;
  * named {@code "weight"}.
  */
 public class FieldKernel extends Kernel {
-    public enum Falloff { HARD, LINEAR, SMOOTHSTEP, QUADRATIC, CUBIC }
-
     public FieldKernel() { super(PWebGPU.particlesKernelField()); }
 
     public FieldKernel center(float x, float y, float z) { compute.set("center", x, y, z); return this; }
-    public FieldKernel radius(float r)     { compute.set("radius", r); return this; }
-    public FieldKernel falloff(Falloff f)  { compute.set("falloff_mode", f.ordinal()); return this; }
+    public FieldKernel radius(float r)   { compute.set("radius", r);            return this; }
+    public FieldKernel falloff(int mode) { compute.set("falloff_mode", mode);   return this; }
 }

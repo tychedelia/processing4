@@ -708,8 +708,8 @@ public class PWebGPU {
         return processing_geometry_attribute_scale();
     }
 
-    public static long geometryAttributeDead() {
-        return processing_geometry_attribute_dead();
+    public static long geometryAttributeLife() {
+        return processing_geometry_attribute_life();
     }
 
     public static byte geometryAttributeFormat(long attrId) {
@@ -810,8 +810,50 @@ public class PWebGPU {
         return id;
     }
 
-    public static long particlesKernelBounds() {
-        long id = processing_particles_kernel_bounds();
+    public static long particlesKernelForce() {
+        long id = processing_particles_kernel_force();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelIntegrate() {
+        long id = processing_particles_kernel_integrate();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelAge() {
+        long id = processing_particles_kernel_age();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelBoundsSphere() {
+        long id = processing_particles_kernel_bounds_sphere();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelBoundsBox() {
+        long id = processing_particles_kernel_bounds_box();
+        checkError();
+        return id;
+    }
+
+    public static long particlesKernelBoundsGeometry(long geometryId) {
+        long id = processing_particles_kernel_bounds_geometry(geometryId);
+        checkError();
+        return id;
+    }
+
+    public static long particlesScatterCreate(long geometryId) {
+        long id = processing_particles_scatter_create(geometryId);
+        checkError();
+        return id;
+    }
+
+    public static long particlesScatterVolumeCreate(long geometryId) {
+        long id = processing_particles_scatter_volume_create(geometryId);
         checkError();
         return id;
     }

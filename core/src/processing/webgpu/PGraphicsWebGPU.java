@@ -21,6 +21,10 @@ public class PGraphicsWebGPU extends PGraphics {
 
     @Override
     public PSurface createSurface() {
+        String backend = System.getProperty("processing.webgpu.surface", "glfw");
+        if ("newt".equalsIgnoreCase(backend)) {
+            return surface = new PSurfaceNEWT(this);
+        }
         return surface = new PSurfaceGLFW(this);
     }
 

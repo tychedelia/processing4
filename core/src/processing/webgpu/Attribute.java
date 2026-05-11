@@ -61,8 +61,8 @@ public class Attribute {
         return new Attribute(PWebGPU.geometryAttributeScale());
     }
 
-    public static Attribute dead() {
-        return new Attribute(PWebGPU.geometryAttributeDead());
+    public static Attribute life() {
+        return new Attribute(PWebGPU.geometryAttributeLife());
     }
 
     @Override

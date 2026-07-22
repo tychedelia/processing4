@@ -40,7 +40,7 @@ class ProcessingPlugin @Inject constructor(private val objectFactory: ObjectFact
 
         // The experimental WebGPU renderer requires JDK 24+ for the Foreign Function & Memory API
         // bindings produced by jextract. When enabled, pin the Java/Kotlin toolchain accordingly.
-        val webgpu = (project.findProperty("processing.webgpu") as String?)?.toBoolean() ?: false
+        val webgpu = (project.findProperty("processing.webgpu") as String?)?.toBoolean() ?: true
         val javaVersion = if (webgpu) 24 else 17
 
         // Apply the Java plugin to the Project, equivalent of

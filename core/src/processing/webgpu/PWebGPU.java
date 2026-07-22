@@ -712,6 +712,14 @@ public class PWebGPU {
         return processing_geometry_attribute_life();
     }
 
+    public static long geometryAttributeVelocity() {
+        return processing_geometry_attribute_velocity();
+    }
+
+    public static long geometryAttributeAge() {
+        return processing_geometry_attribute_age();
+    }
+
     public static byte geometryAttributeFormat(long attrId) {
         byte fmt = processing_geometry_attribute_format(attrId);
         checkError();

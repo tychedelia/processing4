@@ -12,7 +12,10 @@ plugins {
 // Can be deleted after the migration to Gradle is complete
 layout.buildDirectory = file(".build")
 
-val enableWebGPU = findProperty("enableWebGPU")?.toString()?.toBoolean() ?: false
+// WebGPU is the baseline renderer: always compiled, so core targets Java 24
+// (Foreign Function & Memory API for the native bindings). Pass
+// -PenableWebGPU=false only for a deliberate, unsupported Java-17 build.
+val enableWebGPU = findProperty("enableWebGPU")?.toString()?.toBoolean() ?: true
 val javaVersion = if (enableWebGPU) "24" else "17"
 val kotlinJvmTarget = if (enableWebGPU) {
     org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_24

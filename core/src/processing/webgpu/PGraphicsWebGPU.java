@@ -600,11 +600,30 @@ public class PGraphicsWebGPU extends PGraphics {
 
     // ── Particles ──────────────────────────────────────────────────────��
 
+    /**
+     * A new particle system of {@code capacity} particles. It starts with only
+     * a {@code position} attribute; the attributes its kernels need
+     * (velocity, life, …) materialize on demand as you {@link Particles#apply}
+     * them. Seed positions with {@link Particles#scatter} or emit into it.
+     */
+    public Particles createParticles(int capacity) {
+        return new Particles(capacity, Attribute.position());
+    }
+
     public void particles(Particles p, Geometry shape) {
         if (graphicsId == 0) {
             return;
         }
         PWebGPU.particlesDraw(graphicsId, p.id(), shape.id());
+    }
+
+    /** Draw {@code p} with a default sphere sprite and unlit material. */
+    public void particles(Particles p) {
+        if (graphicsId == 0) {
+            return;
+        }
+        useMaterial(p.defaultMaterial());
+        particles(p, p.defaultGeometry());
     }
 
     public void fill(Buffer colorBuffer) {

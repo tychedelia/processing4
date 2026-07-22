@@ -435,7 +435,7 @@ tasks.register<Copy>("includeJavaMode") {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     dirPermissions { unix("rwx------") }
 }
-val enableWebGPU = findProperty("enableWebGPU")?.toString()?.toBoolean() ?: false
+val enableWebGPU = findProperty("enableWebGPU")?.toString()?.toBoolean() ?: true
 
 tasks.register<Copy>("includeJdk") {
     val jdkVersion = if (enableWebGPU) 24 else 17

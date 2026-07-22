@@ -10982,6 +10982,36 @@ public class PApplet implements PConstants {
   }
 
 
+  // ── WebGPU particles ──────────────────────────────────────────────────
+  //
+  // Forwarded to the WEBGPU renderer so sketches call them unqualified, the
+  // same way loadShader()/shader() forward to the OpenGL renderer. These
+  // require size(w, h, WEBGPU).
+
+  public processing.webgpu.Particles createParticles(int capacity) {
+    return webgpu().createParticles(capacity);
+  }
+
+
+  public void particles(processing.webgpu.Particles p) {
+    webgpu().particles(p);
+  }
+
+
+  public void particles(processing.webgpu.Particles p, processing.webgpu.Geometry shape) {
+    webgpu().particles(p, shape);
+  }
+
+
+  private processing.webgpu.PGraphicsWebGPU webgpu() {
+    if (g instanceof processing.webgpu.PGraphicsWebGPU) {
+      return (processing.webgpu.PGraphicsWebGPU) g;
+    }
+    throw new RuntimeException(
+      "particles require the WEBGPU renderer — call size(w, h, WEBGPU)");
+  }
+
+
   /**
    * Loads a shader into the <b>PShader</b> object. The shader file must be
    * loaded in the sketch's "data" folder/directory to load correctly.

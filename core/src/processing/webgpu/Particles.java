@@ -3,6 +3,7 @@ package processing.webgpu;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Map;
+import java.util.Random;
 
 import processing.webgpu.kernels.AgeKernel;
 import processing.webgpu.kernels.AttrCombineKernel;
@@ -50,6 +51,30 @@ public class Particles {
 
     private long id;
 
+    // ── Beginner-layer convenience state ────────────────────────────────
+    // A Particles built by createParticles(n) starts with only `position`;
+    // motion/lifecycle attributes materialize on the GPU as the kernels that
+    // need them are applied (see Particles.apply). These fields back the
+    // verb helpers (scatter/update/applyForce) and the zero-config draw path.
+    private float dt = 1.0f / 60.0f;
+    private final Random rng = new Random();
+    private Material defaultMaterial;   // lazily built for particles(p)
+    private Geometry defaultGeometry;   // lazily built point sprite
+
+    // Verbs (noise/flock/attract/…) cache their kernel on the system: built
+    // once, re-parameterized and dispatched each call — so a verb in draw()
+    // doesn't create a fresh compute pipeline every frame.
+    private NoiseKernel noiseKernel;
+    private FlockKernel flockKernel;
+    private AttractKernel attractKernel;
+    private VortexKernel vortexKernel;
+    private DragKernel dragKernel;
+    private AgeKernel ageKernel;
+    private ForceKernel forceKernel;
+    private IntegrateKernel integrateKernel;
+    private BoundsKernel.Sphere boundsKernel;
+    private float noiseTime = 0;
+
     public Particles(int capacity, Attribute... attributes) {
         long[] attrIds = new long[attributes.length];
         for (int i = 0; i < attributes.length; i++) {
@@ -82,6 +107,229 @@ public class Particles {
         long bufferId = PWebGPU.particlesBuffer(id, attribute.id());
         if (bufferId == 0) return null;
         return new Buffer(bufferId, true);
+    }
+
+    /**
+     * The buffer for a well-known attribute by name — {@code "position"},
+     * {@code "velocity"}, {@code "color"}, {@code "scale"}, {@code "life"},
+     * {@code "age"}, {@code "normal"}, {@code "uv"}, {@code "rotation"}.
+     * Returns {@code null} if the system hasn't grown that attribute yet.
+     * For a custom attribute, pass its {@link Attribute} to {@link #buffer(Attribute)}.
+     */
+    public Buffer buffer(String name) {
+        return buffer(attributeByName(name));
+    }
+
+    private static Attribute attributeByName(String name) {
+        switch (name) {
+            case "position": return Attribute.position();
+            case "velocity": return Attribute.velocity();
+            case "color":    return Attribute.color();
+            case "scale":    return Attribute.scale();
+            case "life":     return Attribute.life();
+            case "age":      return Attribute.age();
+            case "normal":   return Attribute.normal();
+            case "uv":       return Attribute.uv();
+            case "rotation": return Attribute.rotation();
+            default:
+                throw new IllegalArgumentException(
+                    "\"" + name + "\" is not a built-in attribute; pass its Attribute to buffer(Attribute)");
+        }
+    }
+
+    // ── Beginner verbs ──────────────────────────────────────────────────
+    //
+    // Thin, readable wrappers over the built-in kernels and buffers. Each one
+    // "does a thing" to the whole system — the noun ambiguity of a single
+    // particle never comes up because these read as verbs on the field.
+
+    /** Seconds-per-step used by {@link #update()} and {@link #applyForce}. */
+    public Particles timeStep(float seconds) {
+        this.dt = seconds;
+        return this;
+    }
+
+    /**
+     * Seed every slot with a random position inside a ball of {@code radius}
+     * (centered on the origin), bringing the whole field to life at once — the
+     * natural starting point for a swarm or flock. Writes only {@code position};
+     * with no {@code life} attribute present, every slot renders.
+     */
+    public void scatter(float radius) {
+        Buffer positions = buffer(Attribute.position());
+        if (positions == null) return;
+        int cap = capacity();
+        float[] data = new float[cap * 3];
+        for (int i = 0; i < cap; i++) {
+            // uniform in a ball: random direction * radius * cbrt(u)
+            double x, y, z, d2;
+            do {
+                x = rng.nextDouble() * 2 - 1;
+                y = rng.nextDouble() * 2 - 1;
+                z = rng.nextDouble() * 2 - 1;
+                d2 = x * x + y * y + z * z;
+            } while (d2 > 1.0 || d2 == 0.0);
+            float r = (float) (radius * Math.cbrt(rng.nextDouble()) / Math.sqrt(d2));
+            data[i * 3]     = (float) x * r;
+            data[i * 3 + 1] = (float) y * r;
+            data[i * 3 + 2] = (float) z * r;
+        }
+        positions.write(data);
+    }
+
+    /**
+     * Advance the field one step: {@code position += velocity * dt}. Pair with
+     * {@link #applyForce} (or any velocity-writing verb) applied earlier in the
+     * frame. {@code velocity} materializes on first use.
+     */
+    public void update() {
+        if (integrateKernel == null) integrateKernel = new IntegrateKernel();
+        apply(integrateKernel.dt(dt));
+    }
+
+    /**
+     * Add a constant acceleration to every particle's velocity this step —
+     * gravity, wind, any uniform push. {@code velocity} materializes on first
+     * use; follow with {@link #update()} to integrate it into position.
+     */
+    public void applyForce(float x, float y, float z) {
+        float mag = (float) Math.sqrt(x * x + y * y + z * z);
+        if (mag == 0) return;
+        if (forceKernel == null) forceKernel = new ForceKernel();
+        apply(forceKernel.direction(x, y, z).strength(mag * dt));
+    }
+
+    /** 2D convenience — {@code applyForce(x, y, 0)}. */
+    public void applyForce(float x, float y) {
+        applyForce(x, y, 0);
+    }
+
+    /** Constant downward-or-any acceleration — a readable alias for {@link #applyForce}. */
+    public void gravity(float x, float y, float z) {
+        applyForce(x, y, z);
+    }
+
+    /** 2D gravity — {@code gravity(x, y, 0)}. */
+    public void gravity(float x, float y) {
+        applyForce(x, y, 0);
+    }
+
+    /**
+     * Displace every particle by a value-noise field — smooth, organic drift.
+     * {@code scale} is the spatial frequency (smaller = larger features),
+     * {@code strength} the displacement amount. Time advances automatically so
+     * the field animates; use {@link #noise(float, float, float)} to drive it
+     * yourself.
+     */
+    public void noise(float scale, float strength) {
+        noiseTime += dt;
+        applyNoise(scale, strength, noiseTime, false);
+    }
+
+    /** {@link #noise(float, float)} with an explicit time (no auto-advance). */
+    public void noise(float scale, float strength, float time) {
+        noiseTime = time;
+        applyNoise(scale, strength, time, false);
+    }
+
+    /**
+     * Divergence-free (curl) variant of {@link #noise} — particles flow along
+     * streamlines without piling up. A little more expensive; usually worth it.
+     */
+    public void curlNoise(float scale, float strength) {
+        noiseTime += dt;
+        applyNoise(scale, strength, noiseTime, true);
+    }
+
+    private void applyNoise(float scale, float strength, float time, boolean curl) {
+        if (noiseKernel == null) noiseKernel = new NoiseKernel();
+        apply(noiseKernel.scale(scale).strength(strength).time(time).curl(curl));
+    }
+
+    /** Reynolds flocking with default weights — reads {@code position}, grows and writes {@code velocity}. */
+    public void flock() {
+        if (flockKernel == null) flockKernel = new FlockKernel();
+        apply(flockKernel);
+    }
+
+    /**
+     * Flocking tuned by its two most impactful knobs: {@code neighborDistance}
+     * (how far a boid sees) and {@code separationDistance} (personal space).
+     * For the full weight/speed set, drop to {@code apply(Particles.flock()…)}.
+     */
+    public void flock(float neighborDistance, float separationDistance) {
+        if (flockKernel == null) flockKernel = new FlockKernel();
+        apply(flockKernel.nbrDistance(neighborDistance).sepDistance(separationDistance));
+    }
+
+    /** Pull particles toward a point (positive {@code strength}). */
+    public void attract(float x, float y, float z, float strength) {
+        if (attractKernel == null) attractKernel = new AttractKernel();
+        apply(attractKernel.center(x, y, z).strength(strength));
+    }
+
+    /** {@link #attract} limited to particles within {@code radius}. */
+    public void attract(float x, float y, float z, float strength, float radius) {
+        if (attractKernel == null) attractKernel = new AttractKernel();
+        apply(attractKernel.center(x, y, z).strength(strength).radius(radius));
+    }
+
+    /** Push particles away from a point — {@link #attract} with negated strength. */
+    public void repel(float x, float y, float z, float strength) {
+        attract(x, y, z, -strength);
+    }
+
+    /** {@link #repel} limited to particles within {@code radius}. */
+    public void repel(float x, float y, float z, float strength, float radius) {
+        attract(x, y, z, -strength, radius);
+    }
+
+    /** Swirl particles around a vertical axis through the given point. */
+    public void vortex(float x, float y, float z, float strength) {
+        if (vortexKernel == null) vortexKernel = new VortexKernel();
+        apply(vortexKernel.center(x, y, z).strength(strength));
+    }
+
+    /** {@link #vortex} limited to particles within {@code radius}. */
+    public void vortex(float x, float y, float z, float strength, float radius) {
+        if (vortexKernel == null) vortexKernel = new VortexKernel();
+        apply(vortexKernel.center(x, y, z).strength(strength).radius(radius));
+    }
+
+    /** Damp velocity by {@code amount} in [0, 1] each step — 0 = none, 1 = full stop. */
+    public void drag(float amount) {
+        if (dragKernel == null) dragKernel = new DragKernel();
+        apply(dragKernel.damping(amount));
+    }
+
+    /** Advance per-particle {@code age}; particles past their {@code life} are culled. */
+    public void age() {
+        if (ageKernel == null) ageKernel = new AgeKernel();
+        apply(ageKernel.dt(dt));
+    }
+
+    /** Keep particles within a sphere of {@code radius} around the origin. */
+    public void bounds(float radius) {
+        if (boundsKernel == null) boundsKernel = new BoundsKernel.Sphere();
+        apply(boundsKernel.radius(radius));
+    }
+
+    // ── Zero-config draw ────────────────────────────────────────────────
+
+    /** A plain unlit material for {@link #particles(Particles)}-style drawing. */
+    Material defaultMaterial() {
+        if (defaultMaterial == null) {
+            defaultMaterial = Material.unlit();
+        }
+        return defaultMaterial;
+    }
+
+    /** A small sphere instanced over each particle when no geometry is given. */
+    Geometry defaultGeometry() {
+        if (defaultGeometry == null) {
+            defaultGeometry = Geometry.sphere(2.0f, 8, 6);
+        }
+        return defaultGeometry;
     }
 
     /** Dispatch a typed built-in kernel against this particle system. */
@@ -149,9 +397,7 @@ public class Particles {
     public static VortexKernel vortex()       { return new VortexKernel(); }
     public static ForceKernel force()         { return new ForceKernel(); }
     public static IntegrateKernel integrate() { return new IntegrateKernel(); }
-    public static AgeKernel age()             { return new AgeKernel(); }
     public static ImpulseKernel impulse()     { return new ImpulseKernel(); }
-    public static FlockKernel flock()         { return new FlockKernel(); }
     public static OrientKernel orient()       { return new OrientKernel(); }
     public static FieldKernel field()         { return new FieldKernel(); }
     public static AttrLinearKernel attrLinear()       { return new AttrLinearKernel(); }

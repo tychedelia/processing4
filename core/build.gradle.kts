@@ -12,7 +12,8 @@ repositories {
     maven { url = uri("https://jogamp.org/deployment/maven") }
 }
 
-val enableWebGPU = findProperty("enableWebGPU")?.toString()?.toBoolean() ?: false
+// WebGPU is compiled into core by default (see root build.gradle.kts).
+val enableWebGPU = findProperty("enableWebGPU")?.toString()?.toBoolean() ?: true
 
 sourceSets{
     main{

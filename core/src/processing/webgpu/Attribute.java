@@ -65,6 +65,14 @@ public class Attribute {
         return new Attribute(PWebGPU.geometryAttributeLife());
     }
 
+    public static Attribute velocity() {
+        return new Attribute(PWebGPU.geometryAttributeVelocity());
+    }
+
+    public static Attribute age() {
+        return new Attribute(PWebGPU.geometryAttributeAge());
+    }
+
     @Override
     public boolean equals(Object o) {
         return o instanceof Attribute a && a.id == id;

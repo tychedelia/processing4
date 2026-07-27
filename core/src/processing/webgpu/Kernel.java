@@ -6,9 +6,9 @@ package processing.webgpu;
  * methods (no stringly-typed parameter names) and chains via
  * {@code return this} so callers can configure inline.
  *
- * <p>{@link Particles#apply(Kernel)} dispatches a kernel against the
+ * <p>{@link PParticles#apply(Kernel)} dispatches a kernel against the
  * particle system. For custom WGSL kernels (no typed wrapper), use
- * {@link Compute} directly via {@link Particles#apply(Compute)}.
+ * {@link Compute} directly via {@link PParticles#apply(Compute)}.
  */
 public abstract class Kernel {
 

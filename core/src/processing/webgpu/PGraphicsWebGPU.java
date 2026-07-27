@@ -2,6 +2,8 @@ package processing.webgpu;
 
 import processing.core.PGraphics;
 import processing.core.PImage;
+import processing.core.PLight;
+import processing.core.PMaterial;
 import processing.core.PShape;
 import processing.core.PSurface;
 
@@ -549,26 +551,26 @@ public class PGraphicsWebGPU extends PGraphics {
         PWebGPU.transformSetPosition(light, x, y, z);
     }
 
-    public long directionalLight(float r, float g, float b, float illuminance) {
-        if (graphicsId == 0) return 0;
-        return PWebGPU.lightCreateDirectional(graphicsId, r, g, b, 1.0f, illuminance);
+    public PLight directionalLight(float r, float g, float b, float illuminance) {
+        if (graphicsId == 0) return null;
+        return new PLightWebGPU(PWebGPU.lightCreateDirectional(graphicsId, r, g, b, 1.0f, illuminance));
     }
 
-    public long pointLight(float r, float g, float b,
-                           float intensity, float range, float radius,
-                           float x, float y, float z) {
-        if (graphicsId == 0) return 0;
+    public PLight pointLight(float r, float g, float b,
+                             float intensity, float range, float radius,
+                             float x, float y, float z) {
+        if (graphicsId == 0) return null;
         long light = PWebGPU.lightCreatePoint(graphicsId, r, g, b, 1.0f, intensity, range, radius);
         PWebGPU.transformSetPosition(light, x, y, z);
-        return light;
+        return new PLightWebGPU(light);
     }
 
-    public long spotLight(float r, float g, float b,
-                          float intensity, float range, float radius,
-                          float innerAngle, float outerAngle) {
-        if (graphicsId == 0) return 0;
-        return PWebGPU.lightCreateSpot(graphicsId, r, g, b, 1.0f,
-                intensity, range, radius, innerAngle, outerAngle);
+    public PLight spotLight(float r, float g, float b,
+                            float intensity, float range, float radius,
+                            float innerAngle, float outerAngle) {
+        if (graphicsId == 0) return null;
+        return new PLightWebGPU(PWebGPU.lightCreateSpot(graphicsId, r, g, b, 1.0f,
+                intensity, range, radius, innerAngle, outerAngle));
     }
 
     // ── Images / shapes ─────────────────────────────────────────────────
@@ -587,42 +589,69 @@ public class PGraphicsWebGPU extends PGraphics {
         return new PShapeWebGPU(this, type);
     }
 
-    public void model(long geometryId) {
+    @Override
+    public PShape createShape(int kind, float... p) {
+        switch (kind) {
+            case BOX: {
+                float w = p.length > 0 ? p[0] : 100;
+                float h = p.length > 1 ? p[1] : w;
+                float d = p.length > 2 ? p[2] : w;
+                return PShapeWebGPU.createBox(this, w, h, d);
+            }
+            case SPHERE: {
+                float r = p.length > 0 ? p[0] : 100;
+                return PShapeWebGPU.createSphere(this, r, sphereDetailU, sphereDetailV);
+            }
+            default:
+                return super.createShape(kind, p);
+        }
+    }
+
+    /** Draw a shape's geometry — a {@code PShapeWebGPU} from {@code createShape}. */
+    @Override
+    public void shape(PShape shape) {
+        if (graphicsId == 0) return;
+        model(PShapeWebGPU.geometryId(shape));
+    }
+
+    /** Draw a mesh by native id — internal bridge for {@link PShapeWebGPU#draw}. */
+    void model(long geometryId) {
         if (graphicsId == 0) {
             return;
         }
         PWebGPU.model(graphicsId, geometryId);
     }
 
-    public void model(Geometry geometry) {
-        model(geometry.id());
-    }
-
-    // ── Particles ──────────────────────────────────────────────────────��
+    // ── PParticles ──────────────────────────────────────────────────────��
 
     /**
      * A new particle system of {@code capacity} particles. It starts with only
      * a {@code position} attribute; the attributes its kernels need
-     * (velocity, life, …) materialize on demand as you {@link Particles#apply}
-     * them. Seed positions with {@link Particles#scatter} or emit into it.
+     * (velocity, life, …) materialize on demand as you {@link PParticles#apply}
+     * them. Seed positions with {@link PParticles#scatter} or emit into it.
      */
-    public Particles createParticles(int capacity) {
-        return new Particles(capacity, Attribute.position());
+    public PParticles createParticles(int capacity) {
+        return new PParticles(capacity, Attribute.position());
     }
 
-    public void particles(Particles p, Geometry shape) {
+    /** PParticles seeded from a shape's vertices — capacity is its vertex count. */
+    public PParticles createParticles(PShape source) {
+        return PParticles.fromGeometryId(PShapeWebGPU.geometryId(source), Attribute.position());
+    }
+
+    public void particles(PParticles p, PShape shape) {
         if (graphicsId == 0) {
             return;
         }
-        PWebGPU.particlesDraw(graphicsId, p.id(), shape.id());
+        PWebGPU.particlesDraw(graphicsId, p.id(), PShapeWebGPU.geometryId(shape));
     }
 
     /** Draw {@code p} with a default sphere sprite and unlit material. */
-    public void particles(Particles p) {
+    public void particles(PParticles p) {
         if (graphicsId == 0) {
             return;
         }
-        useMaterial(p.defaultMaterial());
+        material(p.defaultMaterial());
         particles(p, p.defaultGeometry());
     }
 
@@ -635,11 +664,16 @@ public class PGraphicsWebGPU extends PGraphics {
 
     // ── Materials ───────────────────────────────────────────────────────
 
-    public void useMaterial(Material mat) {
+    /** A new PBR material. Configure it, then bind it with {@link #material}. */
+    public PMaterial createMaterial() {
+        return PMaterialWebGPU.pbr();
+    }
+
+    public void material(PMaterial mat) {
         if (graphicsId == 0) {
             return;
         }
-        PWebGPU.material(graphicsId, mat.id());
+        PWebGPU.material(graphicsId, ((PMaterialWebGPU) mat).id());
     }
 
     // ── Picking / unproject ──────────────────────────────────────────────

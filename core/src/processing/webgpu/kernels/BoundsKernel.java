@@ -5,11 +5,11 @@ import processing.webgpu.PWebGPU;
 
 /**
  * Region constraint that keeps particles inside a {@link Sphere} or
- * axis-aligned {@link Box}. Constructed via {@link processing.webgpu.Particles}
- * factories — {@code Particles.boundsSphere()}, {@code Particles.boundsBox()},
- * or {@code Particles.boundsGeometry(geo)}.
+ * axis-aligned {@link Box}. Constructed via {@link processing.webgpu.PParticles}
+ * factories — {@code PParticles.boundsSphere()}, {@code PParticles.boundsBox()},
+ * or {@code PParticles.boundsGeometry(geo)}.
  *
- * <p>{@link #mode(int)} accepts {@code Particles.CLAMP}, {@code REFLECT},
+ * <p>{@link #mode(int)} accepts {@code PParticles.CLAMP}, {@code REFLECT},
  * {@code WRAP}, or {@code SOFT}. {@code WRAP} is toroidal on a box and a
  * no-op on a sphere (sphere wrap is geometrically meaningless).
  */

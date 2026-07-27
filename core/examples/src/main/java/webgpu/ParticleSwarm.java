@@ -1,7 +1,7 @@
 package webgpu;
 
 import processing.core.PApplet;
-import processing.webgpu.Particles;
+import processing.webgpu.PParticles;
 
 /**
  * The simplest particle system: 40k particles, scattered into a ball, pushed
@@ -11,7 +11,7 @@ import processing.webgpu.Particles;
  */
 public class ParticleSwarm extends PApplet {
 
-    Particles p;
+    PParticles p;
 
     public void settings() {
         size(900, 700, WEBGPU);

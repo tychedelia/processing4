@@ -1,7 +1,7 @@
 package webgpu;
 
 import processing.core.PApplet;
-import processing.webgpu.Particles;
+import processing.webgpu.PParticles;
 
 /**
  * A GPU flock of 20k boids. Still no schema and no shader code: the field
@@ -11,7 +11,7 @@ import processing.webgpu.Particles;
  */
 public class Flock extends PApplet {
 
-    Particles p;
+    PParticles p;
 
     public void settings() {
         size(900, 700, WEBGPU);

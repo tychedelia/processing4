@@ -5,6 +5,9 @@ import java.nio.ByteOrder;
 import java.util.Map;
 import java.util.Random;
 
+import processing.core.PMaterial;
+import processing.core.PShape;
+
 import processing.webgpu.kernels.AgeKernel;
 import processing.webgpu.kernels.AttrCombineKernel;
 import processing.webgpu.kernels.AttrLinearKernel;
@@ -24,7 +27,7 @@ import processing.webgpu.kernels.OrientKernel;
 import processing.webgpu.kernels.TransformKernel;
 import processing.webgpu.kernels.VortexKernel;
 
-public class Particles {
+public class PParticles {
 
     // ── Bounds modes (BoundsKernel.mode) ────────────────────────────────
     public static final int CLAMP   = 0;
@@ -52,14 +55,14 @@ public class Particles {
     private long id;
 
     // ── Beginner-layer convenience state ────────────────────────────────
-    // A Particles built by createParticles(n) starts with only `position`;
+    // A PParticles built by createParticles(n) starts with only `position`;
     // motion/lifecycle attributes materialize on the GPU as the kernels that
-    // need them are applied (see Particles.apply). These fields back the
+    // need them are applied (see PParticles.apply). These fields back the
     // verb helpers (scatter/update/applyForce) and the zero-config draw path.
     private float dt = 1.0f / 60.0f;
     private final Random rng = new Random();
-    private Material defaultMaterial;   // lazily built for particles(p)
-    private Geometry defaultGeometry;   // lazily built point sprite
+    private PMaterial defaultMaterial;   // lazily built for particles(p)
+    private PShape defaultGeometry;     // lazily built point sprite
 
     // Verbs (noise/flock/attract/…) cache their kernel on the system: built
     // once, re-parameterized and dispatched each call — so a verb in draw()
@@ -75,7 +78,7 @@ public class Particles {
     private BoundsKernel.Sphere boundsKernel;
     private float noiseTime = 0;
 
-    public Particles(int capacity, Attribute... attributes) {
+    public PParticles(int capacity, Attribute... attributes) {
         long[] attrIds = new long[attributes.length];
         for (int i = 0; i < attributes.length; i++) {
             attrIds[i] = attributes[i].id();
@@ -83,16 +86,16 @@ public class Particles {
         this.id = PWebGPU.particlesCreate(capacity, attrIds);
     }
 
-    private Particles(long id) {
+    private PParticles(long id) {
         this.id = id;
     }
 
-    public static Particles fromGeometry(Geometry geometry, Attribute... attributes) {
+    static PParticles fromGeometryId(long geometryId, Attribute... attributes) {
         long[] attrIds = new long[attributes.length];
         for (int i = 0; i < attributes.length; i++) {
             attrIds[i] = attributes[i].id();
         }
-        return new Particles(PWebGPU.particlesCreateFromGeometry(geometry.id(), attrIds));
+        return new PParticles(PWebGPU.particlesCreateFromGeometry(geometryId, attrIds));
     }
 
     public long id() {
@@ -144,7 +147,7 @@ public class Particles {
     // particle never comes up because these read as verbs on the field.
 
     /** Seconds-per-step used by {@link #update()} and {@link #applyForce}. */
-    public Particles timeStep(float seconds) {
+    public PParticles timeStep(float seconds) {
         this.dt = seconds;
         return this;
     }
@@ -255,7 +258,7 @@ public class Particles {
     /**
      * Flocking tuned by its two most impactful knobs: {@code neighborDistance}
      * (how far a boid sees) and {@code separationDistance} (personal space).
-     * For the full weight/speed set, drop to {@code apply(Particles.flock()…)}.
+     * For the full weight/speed set, drop to {@code apply(PParticles.flock()…)}.
      */
     public void flock(float neighborDistance, float separationDistance) {
         if (flockKernel == null) flockKernel = new FlockKernel();
@@ -314,20 +317,25 @@ public class Particles {
         apply(boundsKernel.radius(radius));
     }
 
+    /** Keep particles within a shape's bounding box. */
+    public void bounds(PShape shape) {
+        apply(new BoundsKernel.Box(PWebGPU.particlesKernelBoundsGeometry(PShapeWebGPU.geometryId(shape))));
+    }
+
     // ── Zero-config draw ────────────────────────────────────────────────
 
-    /** A plain unlit material for {@link #particles(Particles)}-style drawing. */
-    Material defaultMaterial() {
+    /** A plain unlit material for {@link #particles(PParticles)}-style drawing. */
+    PMaterial defaultMaterial() {
         if (defaultMaterial == null) {
-            defaultMaterial = Material.unlit();
+            defaultMaterial = PMaterialWebGPU.unlit();
         }
         return defaultMaterial;
     }
 
-    /** A small sphere instanced over each particle when no geometry is given. */
-    Geometry defaultGeometry() {
+    /** A small sphere instanced over each particle when no shape is given. */
+    PShape defaultGeometry() {
         if (defaultGeometry == null) {
-            defaultGeometry = Geometry.sphere(2.0f, 8, 6);
+            defaultGeometry = PShapeWebGPU.createSphere(null, 2.0f, 8, 6);
         }
         return defaultGeometry;
     }
@@ -409,9 +417,9 @@ public class Particles {
     public static BoundsKernel.Sphere boundsSphere() { return new BoundsKernel.Sphere(); }
     public static BoundsKernel.Box boundsBox()       { return new BoundsKernel.Box(); }
 
-    /** Box bounds preloaded with the given geometry's AABB. */
-    public static BoundsKernel.Box boundsGeometry(Geometry geometry) {
-        return new BoundsKernel.Box(PWebGPU.particlesKernelBoundsGeometry(geometry.id()));
+    /** Box bounds preloaded with a shape's AABB. */
+    public static BoundsKernel.Box boundsShape(PShape shape) {
+        return new BoundsKernel.Box(PWebGPU.particlesKernelBoundsGeometry(PShapeWebGPU.geometryId(shape)));
     }
 
     // ── GPU emitters ────────────────────────────────────────────────────
@@ -420,14 +428,14 @@ public class Particles {
     // both — bump it across frames (or off `frameCount`) to avoid emitting
     // the same sample sequence each dispatch.
 
-    /** Surface scatter from a mesh's triangles. */
-    public static Compute scatter(Geometry geometry) {
-        return new Compute(PWebGPU.particlesScatterCreate(geometry.id()));
+    /** GPU emitter that scatters particles across a shape's surface (triangles). */
+    public static Compute scatterSurface(PShape shape) {
+        return new Compute(PWebGPU.particlesScatterCreate(PShapeWebGPU.geometryId(shape)));
     }
 
-    /** Volume scatter (AABB rejection sampling) inside a closed mesh. */
-    public static Compute scatterVolume(Geometry geometry) {
-        return new Compute(PWebGPU.particlesScatterVolumeCreate(geometry.id()));
+    /** GPU emitter that scatters particles through a closed shape's volume. */
+    public static Compute scatterVolume(PShape shape) {
+        return new Compute(PWebGPU.particlesScatterVolumeCreate(PShapeWebGPU.geometryId(shape)));
     }
 
     public void destroy() {

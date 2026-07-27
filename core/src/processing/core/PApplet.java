@@ -10982,24 +10982,108 @@ public class PApplet implements PConstants {
   }
 
 
-  // ── WebGPU particles ──────────────────────────────────────────────────
+  // ── WebGPU renderer ───────────────────────────────────────────────────
   //
   // Forwarded to the WEBGPU renderer so sketches call them unqualified, the
   // same way loadShader()/shader() forward to the OpenGL renderer. These
   // require size(w, h, WEBGPU).
 
-  public processing.webgpu.Particles createParticles(int capacity) {
+  public processing.webgpu.PParticles createParticles(int capacity) {
     return webgpu().createParticles(capacity);
   }
 
 
-  public void particles(processing.webgpu.Particles p) {
+  public processing.webgpu.PParticles createParticles(PShape source) {
+    return webgpu().createParticles(source);
+  }
+
+
+  public void particles(processing.webgpu.PParticles p) {
     webgpu().particles(p);
   }
 
 
-  public void particles(processing.webgpu.Particles p, processing.webgpu.Geometry shape) {
+  public void particles(processing.webgpu.PParticles p, PShape shape) {
     webgpu().particles(p, shape);
+  }
+
+
+  public PMaterial createMaterial() {
+    return webgpu().createMaterial();
+  }
+
+
+  public void material(PMaterial material) {
+    webgpu().material(material);
+  }
+
+
+  public void fill(processing.webgpu.Buffer colorBuffer) {
+    webgpu().fill(colorBuffer);
+  }
+
+
+  public PLight directionalLight(float r, float g, float b, float illuminance) {
+    return webgpu().directionalLight(r, g, b, illuminance);
+  }
+
+
+  public PLight pointLight(float r, float g, float b,
+                                             float intensity, float range, float radius,
+                                             float x, float y, float z) {
+    return webgpu().pointLight(r, g, b, intensity, range, radius, x, y, z);
+  }
+
+
+  public PLight spotLight(float r, float g, float b,
+                                            float intensity, float range, float radius,
+                                            float innerAngle, float outerAngle) {
+    return webgpu().spotLight(r, g, b, intensity, range, radius, innerAngle, outerAngle);
+  }
+
+
+  public void cameraPosition(float x, float y, float z) {
+    webgpu().cameraPosition(x, y, z);
+  }
+
+
+  public void cameraLookAt(float x, float y, float z) {
+    webgpu().cameraLookAt(x, y, z);
+  }
+
+
+  public void mode3d() {
+    webgpu().mode3d();
+  }
+
+
+  public float worldX(float sx, float sy, float depth) {
+    return webgpu().worldX(sx, sy, depth);
+  }
+
+
+  public float worldY(float sx, float sy, float depth) {
+    return webgpu().worldY(sx, sy, depth);
+  }
+
+
+  public float worldZ(float sx, float sy, float depth) {
+    return webgpu().worldZ(sx, sy, depth);
+  }
+
+
+  public void bloom(float intensity) {
+    webgpu().bloom(intensity);
+  }
+
+
+  public void bloom(float intensity, float threshold) {
+    webgpu().bloom(intensity, threshold);
+  }
+
+
+  public void noBloom() {
+    webgpu().noBloom();
   }
 
 

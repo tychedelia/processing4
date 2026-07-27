@@ -1,5 +1,6 @@
 package processing.webgpu;
 
+import processing.core.PGraphics;
 import processing.core.PShape;
 import processing.core.PVector;
 
@@ -263,11 +264,43 @@ public class PShapeWebGPU extends PShape {
     }
 
     /**
-     * Create a box geometry.
+     * Create a box geometry. {@code pg} may be null for a shape used only as
+     * geometry (e.g. a particle instance source) rather than drawn directly.
      */
     public static PShapeWebGPU createBox(PGraphicsWebGPU pg, float width, float height, float depth) {
         PShapeWebGPU shape = new PShapeWebGPU(pg, GEOMETRY);
         shape.geometryId = PWebGPU.geometryBox(width, height, depth);
         return shape;
+    }
+
+    /**
+     * Create a sphere geometry. {@code pg} may be null for a shape used only
+     * as geometry rather than drawn directly.
+     */
+    public static PShapeWebGPU createSphere(PGraphicsWebGPU pg, float radius, int sectors, int stacks) {
+        PShapeWebGPU shape = new PShapeWebGPU(pg, GEOMETRY);
+        shape.geometryId = PWebGPU.geometrySphere(radius, sectors, stacks);
+        return shape;
+    }
+
+    /**
+     * The native geometry id backing {@code shape}. Every WEBGPU shape — built
+     * with {@code createShape()} / {@code createShape(BOX, …)} or via
+     * beginShape/vertex — is a {@code PShapeWebGPU}; this is the bridge used
+     * wherever a mesh is consumed (particles, bounds, seeding).
+     */
+    public static long geometryId(PShape shape) {
+        if (shape instanceof PShapeWebGPU s) {
+            return s.geometryId;
+        }
+        throw new IllegalArgumentException("expected a WEBGPU shape (from createShape)");
+    }
+
+    /** Render this shape's geometry through {@code g}; invoked by {@code shape(this)}. */
+    @Override
+    public void draw(PGraphics g) {
+        if (geometryId != 0 && g instanceof PGraphicsWebGPU pgpu) {
+            pgpu.model(geometryId);
+        }
     }
 }

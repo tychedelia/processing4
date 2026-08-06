@@ -39,6 +39,16 @@ public class PWebGPU {
         return surfaceId;
     }
 
+    public static void cursor(long surfaceId, byte kind) {
+        processing_cursor(surfaceId, kind);
+        checkError();
+    }
+
+    public static void noCursor(long surfaceId) {
+        processing_no_cursor(surfaceId);
+        checkError();
+    }
+
     public static void destroySurface(long surfaceId) {
         processing_surface_destroy(surfaceId);
         checkError();
@@ -136,6 +146,24 @@ public class PWebGPU {
         checkError();
     }
 
+    public static void tint(long graphicsId, float r, float g, float b, float a) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment color = allocateColor(arena, r, g, b, a);
+            processing_tint(graphicsId, color);
+            checkError();
+        }
+    }
+
+    public static void noTint(long graphicsId) {
+        processing_no_tint(graphicsId);
+        checkError();
+    }
+
+    public static void clear(long graphicsId) {
+        processing_clear(graphicsId);
+        checkError();
+    }
+
     // ── Stroke style ────────────────────────────────────────────────────
 
     public static final byte STROKE_CAP_ROUND = 0;
@@ -186,6 +214,12 @@ public class PWebGPU {
         checkError();
     }
 
+    public static void setCustomBlendMode(long graphicsId, byte colorSrc, byte colorDst, byte colorOp,
+                                          byte alphaSrc, byte alphaDst, byte alphaOp) {
+        processing_set_custom_blend_mode(graphicsId, colorSrc, colorDst, colorOp, alphaSrc, alphaDst, alphaOp);
+        checkError();
+    }
+
     // ── 2D drawing matrix ───────────────────────────────────────────────
 
     public static void pushMatrix(long graphicsId) {
@@ -203,18 +237,92 @@ public class PWebGPU {
         checkError();
     }
 
+    public static void push(long graphicsId) {
+        processing_push(graphicsId);
+        checkError();
+    }
+
+    public static void pop(long graphicsId) {
+        processing_pop(graphicsId);
+        checkError();
+    }
+
+    public static void pushStyle(long graphicsId) {
+        processing_push_style(graphicsId);
+        checkError();
+    }
+
+    public static void popStyle(long graphicsId) {
+        processing_pop_style(graphicsId);
+        checkError();
+    }
+
+    /** {@code colMajor16} is a 4x4 matrix in column-major order. */
+    public static void applyMatrix(long graphicsId, float[] colMajor16) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment m = arena.allocateFrom(java.lang.foreign.ValueLayout.JAVA_FLOAT, colMajor16);
+            processing_apply_matrix(graphicsId, m);
+            checkError();
+        }
+    }
+
+    /** The current model matrix as 16 floats in column-major order. */
+    public static float[] getMatrix(long graphicsId) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment mat = processing_get_matrix(arena, graphicsId);
+            checkError();
+            return processing.ffi.Matrix.m(mat).toArray(java.lang.foreign.ValueLayout.JAVA_FLOAT);
+        }
+    }
+
+    public static float screenX(long graphicsId, float x, float y, float z) {
+        float r = processing_screen_x(graphicsId, x, y, z);
+        checkError();
+        return r;
+    }
+
+    public static float screenY(long graphicsId, float x, float y, float z) {
+        float r = processing_screen_y(graphicsId, x, y, z);
+        checkError();
+        return r;
+    }
+
+    public static float screenZ(long graphicsId, float x, float y, float z) {
+        float r = processing_screen_z(graphicsId, x, y, z);
+        checkError();
+        return r;
+    }
+
+    public static float modelX(long graphicsId, float x, float y, float z) {
+        float r = processing_model_x(graphicsId, x, y, z);
+        checkError();
+        return r;
+    }
+
+    public static float modelY(long graphicsId, float x, float y, float z) {
+        float r = processing_model_y(graphicsId, x, y, z);
+        checkError();
+        return r;
+    }
+
+    public static float modelZ(long graphicsId, float x, float y, float z) {
+        float r = processing_model_z(graphicsId, x, y, z);
+        checkError();
+        return r;
+    }
+
     public static void translate(long graphicsId, float x, float y) {
-        processing_translate(graphicsId, x, y);
+        processing_translate(graphicsId, x, y, 0f);
         checkError();
     }
 
     public static void rotate(long graphicsId, float angle) {
-        processing_rotate(graphicsId, angle);
+        processing_rotate(graphicsId, angle, 0f, 0f, 1f);
         checkError();
     }
 
     public static void scale(long graphicsId, float x, float y) {
-        processing_scale(graphicsId, x, y);
+        processing_scale(graphicsId, x, y, 1f);
         checkError();
     }
 
@@ -392,6 +500,63 @@ public class PWebGPU {
         checkError();
     }
 
+    public static void camera(long graphicsId, float eyeX, float eyeY, float eyeZ,
+                              float centerX, float centerY, float centerZ,
+                              float upX, float upY, float upZ) {
+        processing_camera(graphicsId, eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ);
+        checkError();
+    }
+
+    public static void cameraReset(long graphicsId) {
+        processing_camera_reset(graphicsId);
+        checkError();
+    }
+
+    public static void cameraSetCenter(long graphicsId, float x, float y, float z) {
+        processing_camera_set_center(graphicsId, x, y, z);
+        checkError();
+    }
+
+    public static void cameraSetDistance(long graphicsId, float distance) {
+        processing_camera_set_distance(graphicsId, distance);
+        checkError();
+    }
+
+    public static void cameraSetMinDistance(long graphicsId, float min) {
+        processing_camera_set_min_distance(graphicsId, min);
+        checkError();
+    }
+
+    public static void cameraSetMaxDistance(long graphicsId, float max) {
+        processing_camera_set_max_distance(graphicsId, max);
+        checkError();
+    }
+
+    public static void cameraSetSpeed(long graphicsId, float speed) {
+        processing_camera_set_speed(graphicsId, speed);
+        checkError();
+    }
+
+    public static void orbitCamera(long graphicsId) {
+        processing_orbit_camera(graphicsId);
+        checkError();
+    }
+
+    public static void panCamera(long graphicsId) {
+        processing_pan_camera(graphicsId);
+        checkError();
+    }
+
+    public static void freeCamera(long graphicsId) {
+        processing_free_camera(graphicsId);
+        checkError();
+    }
+
+    public static void disableCameraController(long graphicsId) {
+        processing_disable_camera_controller(graphicsId);
+        checkError();
+    }
+
     // ── Entity transforms (3D objects: lights, geometry, etc.) ──────────
 
     public static void transformSetPosition(long entityId, float x, float y, float z) {
@@ -485,6 +650,12 @@ public class PWebGPU {
 
     public static long materialCreatePbr() {
         long id = processing_material_create_pbr();
+        checkError();
+        return id;
+    }
+
+    public static long materialCreateCustom(long shaderId) {
+        long id = processing_material_create_custom(shaderId);
         checkError();
         return id;
     }
@@ -643,7 +814,7 @@ public class PWebGPU {
     public static void computeSetFloat(long computeId, String name, float value) {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment nameSegment = arena.allocateFrom(name);
-            processing_compute_set_float(computeId, nameSegment, value);
+            processing_shader_set_float(computeId, nameSegment, value);
             checkError();
         }
     }
@@ -651,7 +822,7 @@ public class PWebGPU {
     public static void computeSetFloat3(long computeId, String name, float x, float y, float z) {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment nameSegment = arena.allocateFrom(name);
-            processing_compute_set_float3(computeId, nameSegment, x, y, z);
+            processing_shader_set_vec3(computeId, nameSegment, x, y, z);
             checkError();
         }
     }
@@ -659,7 +830,7 @@ public class PWebGPU {
     public static void computeSetUInt(long computeId, String name, int value) {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment nameSegment = arena.allocateFrom(name);
-            processing_compute_set_uint(computeId, nameSegment, value);
+            processing_shader_set_uint(computeId, nameSegment, value);
             checkError();
         }
     }
@@ -667,7 +838,7 @@ public class PWebGPU {
     public static void computeSetInt(long computeId, String name, int value) {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment nameSegment = arena.allocateFrom(name);
-            processing_compute_set_int(computeId, nameSegment, value);
+            processing_shader_set_int(computeId, nameSegment, value);
             checkError();
         }
     }
@@ -675,7 +846,7 @@ public class PWebGPU {
     public static void computeSetBuffer(long computeId, String name, long bufferId) {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment nameSegment = arena.allocateFrom(name);
-            processing_compute_set_buffer(computeId, nameSegment, bufferId);
+            processing_shader_set_buffer(computeId, nameSegment, bufferId);
             checkError();
         }
     }
@@ -683,7 +854,32 @@ public class PWebGPU {
     public static void computeSetTexture(long computeId, String name, long imageId) {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment nameSegment = arena.allocateFrom(name);
-            processing_compute_set_texture(computeId, nameSegment, imageId);
+            processing_shader_set_texture(computeId, nameSegment, imageId);
+            checkError();
+        }
+    }
+
+    public static void computeSetFloat2(long computeId, String name, float x, float y) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment nameSegment = arena.allocateFrom(name);
+            processing_shader_set_vec2(computeId, nameSegment, x, y);
+            checkError();
+        }
+    }
+
+    public static void computeSetFloat4(long computeId, String name, float x, float y, float z, float w) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment nameSegment = arena.allocateFrom(name);
+            processing_shader_set_vec4(computeId, nameSegment, x, y, z, w);
+            checkError();
+        }
+    }
+
+    public static void computeSetMat4(long computeId, String name, float[] matrix) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment nameSegment = arena.allocateFrom(name);
+            MemorySegment matSegment = arena.allocateFrom(java.lang.foreign.ValueLayout.JAVA_FLOAT, matrix);
+            processing_shader_set_mat4(computeId, nameSegment, matSegment);
             checkError();
         }
     }
@@ -771,6 +967,11 @@ public class PWebGPU {
         long bufferId = processing_particles_buffer(particlesId, attrId);
         checkError();
         return bufferId;
+    }
+
+    public static void particlesAttributeAdd(long particlesId, long attrId) {
+        processing_particles_attribute_add(particlesId, attrId);
+        checkError();
     }
 
     public static void particlesEmit(long particlesId, int n, long[] attrIds, byte[] data, long[] attrByteLengths) {
@@ -943,6 +1144,107 @@ public class PWebGPU {
             long imageId = processing_image_create(width, height, dataSegment, data.length);
             checkError();
             return imageId;
+        }
+    }
+
+    public static void image(long graphicsId, long imageId, float dx, float dy) {
+        processing_image(graphicsId, imageId, dx, dy);
+        checkError();
+    }
+
+    public static void imageScaled(long graphicsId, long imageId, float dx, float dy, float dWidth, float dHeight) {
+        processing_image_scaled(graphicsId, imageId, dx, dy, dWidth, dHeight);
+        checkError();
+    }
+
+    public static void imageRegion(long graphicsId, long imageId, float dx, float dy, float dWidth, float dHeight,
+                                   float sx, float sy, float sWidth, float sHeight) {
+        processing_image_region(graphicsId, imageId, dx, dy, dWidth, dHeight, sx, sy, sWidth, sHeight);
+        checkError();
+    }
+
+    public static void imageMode(long graphicsId, byte mode) {
+        processing_image_mode(graphicsId, mode);
+        checkError();
+    }
+
+    // ── Pixels ──────────────────────────────────────────────────────────
+
+    private static int clamp8(int v) {
+        return v < 0 ? 0 : (v > 255 ? 255 : v);
+    }
+
+    /** Read the framebuffer into an ARGB int array of {@code count} pixels. */
+    public static int[] graphicsReadback(long graphicsId, int count) {
+        if (count <= 0) {
+            return new int[0];
+        }
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment buffer = processing.ffi.Color.allocateArray(count, arena);
+            processing_graphics_readback(graphicsId, buffer, count);
+            checkError();
+            long stride = processing.ffi.Color.sizeof();
+            int[] pixels = new int[count];
+            for (int i = 0; i < count; i++) {
+                MemorySegment c = buffer.asSlice(i * stride, stride);
+                int r = clamp8(Math.round(processing.ffi.Color.c1(c) * 255f));
+                int g = clamp8(Math.round(processing.ffi.Color.c2(c) * 255f));
+                int b = clamp8(Math.round(processing.ffi.Color.c3(c) * 255f));
+                int a = clamp8(Math.round(processing.ffi.Color.a(c) * 255f));
+                pixels[i] = (a << 24) | (r << 16) | (g << 8) | b;
+            }
+            return pixels;
+        }
+    }
+
+    /** Marshal an ARGB int array into a native {@code Color[]} segment. */
+    private static MemorySegment argbToColors(Arena arena, int[] argb) {
+        MemorySegment buffer = processing.ffi.Color.allocateArray(argb.length, arena);
+        long stride = processing.ffi.Color.sizeof();
+        for (int i = 0; i < argb.length; i++) {
+            int c = argb[i];
+            MemorySegment el = buffer.asSlice(i * stride, stride);
+            processing.ffi.Color.c1(el, ((c >> 16) & 0xFF) / 255f);
+            processing.ffi.Color.c2(el, ((c >> 8) & 0xFF) / 255f);
+            processing.ffi.Color.c3(el, (c & 0xFF) / 255f);
+            processing.ffi.Color.a(el, ((c >>> 24) & 0xFF) / 255f);
+            processing.ffi.Color.space(el, COLOR_SPACE_SRGB);
+        }
+        return buffer;
+    }
+
+    /** Push an ARGB int array back to the framebuffer. */
+    public static void graphicsUpdate(long graphicsId, int[] pixels) {
+        if (pixels.length == 0) {
+            return;
+        }
+        try (Arena arena = Arena.ofConfined()) {
+            processing_graphics_update(graphicsId, argbToColors(arena, pixels), pixels.length);
+            checkError();
+        }
+    }
+
+    /** Push a {@code w×h} ARGB block (row-major) into the framebuffer at {@code (x, y)}. */
+    public static void graphicsUpdateRegion(long graphicsId, int x, int y, int w, int h, int[] regionArgb) {
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        try (Arena arena = Arena.ofConfined()) {
+            processing_graphics_update_region(graphicsId, x, y, w, h,
+                                              argbToColors(arena, regionArgb), (long) w * h);
+            checkError();
+        }
+    }
+
+    public static void graphicsSet(long graphicsId, int x, int y, int argb) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment color = allocateColor(arena,
+                ((argb >> 16) & 0xFF) / 255f,
+                ((argb >> 8) & 0xFF) / 255f,
+                (argb & 0xFF) / 255f,
+                ((argb >>> 24) & 0xFF) / 255f);
+            processing_graphics_set(graphicsId, x, y, color);
+            checkError();
         }
     }
 
@@ -1257,6 +1559,51 @@ public class PWebGPU {
         return count;
     }
 
+    private static float[] geometryFloats(long geoId, int start, int end, int comps,
+                                          java.util.function.ToIntFunction<MemorySegment> call) {
+        int count = end - start;
+        if (count <= 0) return new float[0];
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment out = arena.allocate(java.lang.foreign.ValueLayout.JAVA_FLOAT, (long) count * comps);
+            int written = call.applyAsInt(out);
+            checkError();
+            return out.asSlice(0, (long) written * comps * Float.BYTES)
+                      .toArray(java.lang.foreign.ValueLayout.JAVA_FLOAT);
+        }
+    }
+
+    public static float[] geometryGetPositions(long geoId, int start, int end) {
+        return geometryFloats(geoId, start, end, 3,
+            out -> processing_geometry_get_positions(geoId, start, end, out, end - start));
+    }
+
+    public static float[] geometryGetNormals(long geoId, int start, int end) {
+        return geometryFloats(geoId, start, end, 3,
+            out -> processing_geometry_get_normals(geoId, start, end, out, end - start));
+    }
+
+    public static float[] geometryGetColors(long geoId, int start, int end) {
+        return geometryFloats(geoId, start, end, 4,
+            out -> processing_geometry_get_colors(geoId, start, end, out, end - start));
+    }
+
+    public static float[] geometryGetUvs(long geoId, int start, int end) {
+        return geometryFloats(geoId, start, end, 2,
+            out -> processing_geometry_get_uvs(geoId, start, end, out, end - start));
+    }
+
+    public static int[] geometryGetIndices(long geoId, int start, int end) {
+        int count = end - start;
+        if (count <= 0) return new int[0];
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment out = arena.allocate(java.lang.foreign.ValueLayout.JAVA_INT, count);
+            int written = processing_geometry_get_indices(geoId, start, end, out, count);
+            checkError();
+            return out.asSlice(0, (long) written * Integer.BYTES)
+                      .toArray(java.lang.foreign.ValueLayout.JAVA_INT);
+        }
+    }
+
     public static void geometrySetVertex(long geoId, int index, float x, float y, float z) {
         processing_geometry_set_vertex(geoId, index, x, y, z);
         checkError();
@@ -1303,6 +1650,223 @@ public class PWebGPU {
         String errorMsg = ret.getString(0);
         if (errorMsg != null && !errorMsg.isEmpty()) {
             throw new PWebGPUException(errorMsg);
+        }
+    }
+
+    // ── glTF ────────────────────────────────────────────────────────────
+
+    public static long gltfLoad(long graphicsId, String path) {
+        try (Arena arena = Arena.ofConfined()) {
+            long id = processing_gltf_load(graphicsId, arena.allocateFrom(path));
+            checkError();
+            return id;
+        }
+    }
+
+    public static long gltfGeometry(long gltfId, String name) {
+        try (Arena arena = Arena.ofConfined()) {
+            long id = processing_gltf_geometry(gltfId, arena.allocateFrom(name));
+            checkError();
+            return id;
+        }
+    }
+
+    public static long gltfMaterial(long gltfId, String name) {
+        try (Arena arena = Arena.ofConfined()) {
+            long id = processing_gltf_material(gltfId, arena.allocateFrom(name));
+            checkError();
+            return id;
+        }
+    }
+
+    public static long gltfLight(long gltfId, int index) {
+        long id = processing_gltf_light(gltfId, index);
+        checkError();
+        return id;
+    }
+
+    public static void gltfCamera(long gltfId, int index) {
+        processing_gltf_camera(gltfId, index);
+        checkError();
+    }
+
+    // ── Fonts / text ────────────────────────────────────────────────────
+
+    public static long createFont(String name) {
+        try (Arena arena = Arena.ofConfined()) {
+            long id = processing_create_font(arena.allocateFrom(name));
+            checkError();
+            return id;
+        }
+    }
+
+    public static long loadFont(String path) {
+        try (Arena arena = Arena.ofConfined()) {
+            long id = processing_load_font(arena.allocateFrom(path));
+            checkError();
+            return id;
+        }
+    }
+
+    public static int fontVariationCount(long fontId) {
+        int n = processing_font_variation_count(fontId);
+        checkError();
+        return n;
+    }
+
+    public static PFontWebGPU.FontAxis fontVariation(long fontId, int index) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment tag = arena.allocate(java.lang.foreign.ValueLayout.JAVA_BYTE, 4);
+            MemorySegment min = arena.allocate(java.lang.foreign.ValueLayout.JAVA_FLOAT);
+            MemorySegment max = arena.allocate(java.lang.foreign.ValueLayout.JAVA_FLOAT);
+            MemorySegment def = arena.allocate(java.lang.foreign.ValueLayout.JAVA_FLOAT);
+            boolean ok = processing_font_variation(fontId, index, tag, min, max, def);
+            checkError();
+            if (!ok) {
+                return null;
+            }
+            String tagStr = new String(tag.toArray(java.lang.foreign.ValueLayout.JAVA_BYTE),
+                                       java.nio.charset.StandardCharsets.US_ASCII);
+            return new PFontWebGPU.FontAxis(tagStr,
+                min.get(java.lang.foreign.ValueLayout.JAVA_FLOAT, 0),
+                max.get(java.lang.foreign.ValueLayout.JAVA_FLOAT, 0),
+                def.get(java.lang.foreign.ValueLayout.JAVA_FLOAT, 0));
+        }
+    }
+
+    public static void textFont(long graphicsId, long fontId) {
+        processing_text_font(graphicsId, fontId);
+        checkError();
+    }
+
+    public static void text(long graphicsId, String str, float x, float y) {
+        try (Arena arena = Arena.ofConfined()) {
+            processing_text(graphicsId, arena.allocateFrom(str), x, y);
+            checkError();
+        }
+    }
+
+    public static void text3d(long graphicsId, String str, float x, float y, float z) {
+        try (Arena arena = Arena.ofConfined()) {
+            processing_text_3d(graphicsId, arena.allocateFrom(str), x, y, z);
+            checkError();
+        }
+    }
+
+    public static void textInt(long graphicsId, int value, float x, float y) {
+        processing_text_int(graphicsId, value, x, y);
+        checkError();
+    }
+
+    public static void textFloat(long graphicsId, float value, float x, float y) {
+        processing_text_float(graphicsId, value, x, y);
+        checkError();
+    }
+
+    public static void textBox(long graphicsId, String str, float x, float y, float w, float h) {
+        try (Arena arena = Arena.ofConfined()) {
+            processing_text_box(graphicsId, arena.allocateFrom(str), x, y, w, h);
+            checkError();
+        }
+    }
+
+    public static void textSize(long graphicsId, float size) {
+        processing_text_size(graphicsId, size);
+        checkError();
+    }
+
+    public static void textAlign(long graphicsId, byte h, byte v) {
+        processing_text_align(graphicsId, h, v);
+        checkError();
+    }
+
+    public static void textLeading(long graphicsId, float leading) {
+        processing_text_leading(graphicsId, leading);
+        checkError();
+    }
+
+    public static void textWrap(long graphicsId, byte mode) {
+        processing_text_wrap(graphicsId, mode);
+        checkError();
+    }
+
+    public static void textStyle(long graphicsId, byte style) {
+        processing_text_style(graphicsId, style);
+        checkError();
+    }
+
+    public static void textWeight(long graphicsId, float weight) {
+        processing_text_weight(graphicsId, weight);
+        checkError();
+    }
+
+    public static float textWidth(long graphicsId, String str) {
+        try (Arena arena = Arena.ofConfined()) {
+            float w = processing_text_width(graphicsId, arena.allocateFrom(str));
+            checkError();
+            return w;
+        }
+    }
+
+    public static float textAscent(long graphicsId) {
+        float a = processing_text_ascent(graphicsId);
+        checkError();
+        return a;
+    }
+
+    public static float textDescent(long graphicsId) {
+        float d = processing_text_descent(graphicsId);
+        checkError();
+        return d;
+    }
+
+    /** Returns {@code [x, y, w, h]} of the text's bounding box. */
+    public static float[] textBounds(long graphicsId, String str, float x, float y) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment out = arena.allocate(java.lang.foreign.ValueLayout.JAVA_FLOAT, 4);
+            processing_text_bounds(graphicsId, arena.allocateFrom(str), x, y, out);
+            checkError();
+            return out.toArray(java.lang.foreign.ValueLayout.JAVA_FLOAT);
+        }
+    }
+
+    public static void textVariation(long graphicsId, String tag, float value) {
+        try (Arena arena = Arena.ofConfined()) {
+            processing_text_variation(graphicsId, arena.allocateFrom(tag), value);
+            checkError();
+        }
+    }
+
+    public static void clearTextVariations(long graphicsId) {
+        processing_clear_text_variations(graphicsId);
+        checkError();
+    }
+
+    public static void textFeature(long graphicsId, String tag, int value) {
+        try (Arena arena = Arena.ofConfined()) {
+            processing_text_feature(graphicsId, arena.allocateFrom(tag), (short) value);
+            checkError();
+        }
+    }
+
+    public static void noTextFeature(long graphicsId, String tag) {
+        try (Arena arena = Arena.ofConfined()) {
+            processing_no_text_feature(graphicsId, arena.allocateFrom(tag));
+            checkError();
+        }
+    }
+
+    public static void clearTextFeatures(long graphicsId) {
+        processing_clear_text_features(graphicsId);
+        checkError();
+    }
+
+    /** {@code colors} is a flat RGBA array (4 floats per glyph color). */
+    public static void textGlyphColors(long graphicsId, float[] colors) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment c = arena.allocateFrom(java.lang.foreign.ValueLayout.JAVA_FLOAT, colors);
+            processing_text_glyph_colors(graphicsId, c, colors.length / 4);
+            checkError();
         }
     }
 }

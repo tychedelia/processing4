@@ -44,6 +44,13 @@ public class PShapeWebGPU extends PShape {
         this.family = family;
     }
 
+    /** Wrap an existing native geometry (e.g. a mesh loaded from glTF). */
+    static PShapeWebGPU fromGeometry(PGraphicsWebGPU pg, long geometryId) {
+        PShapeWebGPU shape = new PShapeWebGPU(pg, GEOMETRY);
+        shape.geometryId = geometryId;
+        return shape;
+    }
+
     /**
      * Map Processing shape kinds to WebGPU topologies.
      */
@@ -199,6 +206,48 @@ public class PShapeWebGPU extends PShape {
             return 0;
         }
         return PWebGPU.geometryIndexCount(geometryId);
+    }
+
+    @Override
+    public PVector getVertex(int index, PVector vec) {
+        if (vec == null) {
+            vec = new PVector();
+        }
+        if (geometryId == 0) {
+            return vec;
+        }
+        float[] p = PWebGPU.geometryGetPositions(geometryId, index, index + 1);
+        if (p.length >= 3) {
+            vec.set(p[0], p[1], p[2]);
+        }
+        return vec;
+    }
+
+    @Override
+    public float getVertexX(int index) {
+        if (geometryId == 0) {
+            return 0;
+        }
+        float[] p = PWebGPU.geometryGetPositions(geometryId, index, index + 1);
+        return p.length >= 1 ? p[0] : 0;
+    }
+
+    @Override
+    public float getVertexY(int index) {
+        if (geometryId == 0) {
+            return 0;
+        }
+        float[] p = PWebGPU.geometryGetPositions(geometryId, index, index + 1);
+        return p.length >= 2 ? p[1] : 0;
+    }
+
+    @Override
+    public float getVertexZ(int index) {
+        if (geometryId == 0) {
+            return 0;
+        }
+        float[] p = PWebGPU.geometryGetPositions(geometryId, index, index + 1);
+        return p.length >= 3 ? p[2] : 0;
     }
 
     @Override

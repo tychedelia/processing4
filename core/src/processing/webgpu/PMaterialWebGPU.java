@@ -11,6 +11,11 @@ public class PMaterialWebGPU implements PMaterial {
         this.id = id;
     }
 
+    /** Wrap an existing native material (e.g. one loaded from glTF). */
+    static PMaterial fromId(long id) {
+        return new PMaterialWebGPU(id);
+    }
+
     public static PMaterial pbr() {
         return new PMaterialWebGPU(PWebGPU.materialCreatePbr());
     }
@@ -19,6 +24,11 @@ public class PMaterialWebGPU implements PMaterial {
         PMaterial mat = pbr();
         mat.set("unlit", 1.0f);
         return mat;
+    }
+
+    /** A material backed by a custom WGSL shader (WEBGPU-specific). */
+    public static PMaterial custom(Shader shader) {
+        return new PMaterialWebGPU(PWebGPU.materialCreateCustom(shader.id()));
     }
 
     long id() {

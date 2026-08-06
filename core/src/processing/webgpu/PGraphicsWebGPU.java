@@ -1,7 +1,11 @@
 package processing.webgpu;
 
+import processing.core.PFont;
 import processing.core.PGraphics;
 import processing.core.PImage;
+import processing.core.PMatrix;
+import processing.core.PMatrix2D;
+import processing.core.PMatrix3D;
 import processing.core.PLight;
 import processing.core.PMaterial;
 import processing.core.PShape;
@@ -125,6 +129,90 @@ public class PGraphicsWebGPU extends PGraphics {
         PWebGPU.backgroundImage(graphicsId, img.getId());
     }
 
+    /** Upload the image to the GPU on first use and return its native id. */
+    private long ensureImageId(PImage image) {
+        if (!(image instanceof PImageWebGPU)) {
+            throw new RuntimeException("WebGPU renderer requires PImageWebGPU. Use createImage().");
+        }
+        PImageWebGPU img = (PImageWebGPU) image;
+        if (img.getId() == 0) {
+            img.loadPixels();
+            byte[] rgba = pixelsToRGBA(img.pixels);
+            img.setId(PWebGPU.imageCreate(img.pixelWidth, img.pixelHeight, rgba));
+        }
+        return img.getId();
+    }
+
+    // imageMode and the plain/scaled image() overloads are resolved to absolute
+    // corner coordinates by PGraphics before reaching imageImpl, so a single
+    // region draw covers every case (native image_mode stays CORNER).
+    @Override
+    protected void imageImpl(PImage img,
+                             float x1, float y1, float x2, float y2,
+                             int u1, int v1, int u2, int v2) {
+        if (graphicsId == 0) {
+            return;
+        }
+        long imageId = ensureImageId(img);
+        PWebGPU.imageRegion(graphicsId, imageId,
+                            x1, y1, x2 - x1, y2 - y1,
+                            u1, v1, u2 - u1, v2 - v1);
+    }
+
+    // ── Pixels ──────────────────────────────────────────────────────────
+
+    @Override
+    public void loadPixels() {
+        if (graphicsId == 0) {
+            return;
+        }
+        int n = pixelWidth * pixelHeight;
+        if (pixels == null || pixels.length != n) {
+            pixels = new int[n];
+        }
+        int[] read = PWebGPU.graphicsReadback(graphicsId, n);
+        System.arraycopy(read, 0, pixels, 0, Math.min(read.length, n));
+    }
+
+    @Override
+    public void updatePixels() {
+        if (graphicsId == 0 || pixels == null) {
+            return;
+        }
+        PWebGPU.graphicsUpdate(graphicsId, pixels);
+    }
+
+    @Override
+    public void updatePixels(int x, int y, int w, int h) {
+        if (graphicsId == 0 || pixels == null) {
+            return;
+        }
+        if (x < 0) { w += x; x = 0; }
+        if (y < 0) { h += y; y = 0; }
+        if (x + w > pixelWidth) {
+            w = pixelWidth - x;
+        }
+        if (y + h > pixelHeight) {
+            h = pixelHeight - y;
+        }
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        int[] region = new int[w * h];
+        for (int row = 0; row < h; row++) {
+            System.arraycopy(pixels, (y + row) * pixelWidth + x, region, row * w, w);
+        }
+        PWebGPU.graphicsUpdateRegion(graphicsId, x, y, w, h, region);
+    }
+
+    @Override
+    public void set(int x, int y, int argb) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.graphicsSet(graphicsId, x, y, argb);
+    }
+
     // ── Fill / stroke ───────────────────────────────────────────────────
 
     @Override
@@ -178,6 +266,32 @@ public class PGraphicsWebGPU extends PGraphics {
             return;
         }
         PWebGPU.noStroke(graphicsId);
+    }
+
+    @Override
+    protected void tintFromCalc() {
+        super.tintFromCalc();
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.tint(graphicsId, tintR, tintG, tintB, tintA);
+    }
+
+    @Override
+    public void noTint() {
+        super.noTint();
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.noTint(graphicsId);
+    }
+
+    @Override
+    public void clear() {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.clear(graphicsId);
     }
 
     @Override
@@ -442,6 +556,104 @@ public class PGraphicsWebGPU extends PGraphics {
     }
 
     @Override
+    public void push() {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.push(graphicsId);
+    }
+
+    @Override
+    public void pop() {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.pop(graphicsId);
+    }
+
+    @Override
+    public void pushStyle() {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.pushStyle(graphicsId);
+    }
+
+    @Override
+    public void popStyle() {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.popStyle(graphicsId);
+    }
+
+    @Override
+    public void applyMatrix(float n00, float n01, float n02,
+                            float n10, float n11, float n12) {
+        applyMatrix(n00, n01, n02, 0,
+                    n10, n11, n12, 0,
+                    0,   0,   1,   0,
+                    0,   0,   0,   1);
+    }
+
+    @Override
+    public void applyMatrix(float n00, float n01, float n02, float n03,
+                            float n10, float n11, float n12, float n13,
+                            float n20, float n21, float n22, float n23,
+                            float n30, float n31, float n32, float n33) {
+        if (graphicsId == 0) {
+            return;
+        }
+        // Processing supplies row-major (n{row}{col}); the native matrix is column-major.
+        PWebGPU.applyMatrix(graphicsId, new float[] {
+            n00, n10, n20, n30,
+            n01, n11, n21, n31,
+            n02, n12, n22, n32,
+            n03, n13, n23, n33,
+        });
+    }
+
+    @Override
+    public PMatrix getMatrix() {
+        return getMatrix((PMatrix3D) null);
+    }
+
+    @Override
+    public PMatrix3D getMatrix(PMatrix3D target) {
+        if (target == null) {
+            target = new PMatrix3D();
+        }
+        if (graphicsId == 0) {
+            return target;
+        }
+        float[] c = PWebGPU.getMatrix(graphicsId); // column-major
+        if (c.length >= 16) {
+            // column-major → PMatrix3D's row-major (m{row}{col})
+            target.set(c[0], c[4], c[8],  c[12],
+                       c[1], c[5], c[9],  c[13],
+                       c[2], c[6], c[10], c[14],
+                       c[3], c[7], c[11], c[15]);
+        }
+        return target;
+    }
+
+    @Override
+    public PMatrix2D getMatrix(PMatrix2D target) {
+        if (target == null) {
+            target = new PMatrix2D();
+        }
+        if (graphicsId == 0) {
+            return target;
+        }
+        float[] c = PWebGPU.getMatrix(graphicsId); // column-major
+        if (c.length >= 16) {
+            target.set(c[0], c[4], c[12],
+                       c[1], c[5], c[13]);
+        }
+        return target;
+    }
+
+    @Override
     public void translate(float x, float y) {
         if (graphicsId == 0) {
             return;
@@ -481,6 +693,66 @@ public class PGraphicsWebGPU extends PGraphics {
         PWebGPU.shearY(graphicsId, angle);
     }
 
+    // ── Coordinate mapping ──────────────────────────────────────────────
+
+    @Override
+    public float screenX(float x, float y) {
+        return screenX(x, y, 0);
+    }
+
+    @Override
+    public float screenX(float x, float y, float z) {
+        if (graphicsId == 0) {
+            return 0;
+        }
+        return PWebGPU.screenX(graphicsId, x, y, z);
+    }
+
+    @Override
+    public float screenY(float x, float y) {
+        return screenY(x, y, 0);
+    }
+
+    @Override
+    public float screenY(float x, float y, float z) {
+        if (graphicsId == 0) {
+            return 0;
+        }
+        return PWebGPU.screenY(graphicsId, x, y, z);
+    }
+
+    @Override
+    public float screenZ(float x, float y, float z) {
+        if (graphicsId == 0) {
+            return 0;
+        }
+        return PWebGPU.screenZ(graphicsId, x, y, z);
+    }
+
+    @Override
+    public float modelX(float x, float y, float z) {
+        if (graphicsId == 0) {
+            return 0;
+        }
+        return PWebGPU.modelX(graphicsId, x, y, z);
+    }
+
+    @Override
+    public float modelY(float x, float y, float z) {
+        if (graphicsId == 0) {
+            return 0;
+        }
+        return PWebGPU.modelY(graphicsId, x, y, z);
+    }
+
+    @Override
+    public float modelZ(float x, float y, float z) {
+        if (graphicsId == 0) {
+            return 0;
+        }
+        return PWebGPU.modelZ(graphicsId, x, y, z);
+    }
+
     // ── 3D camera / projection ──────────────────────────────────────────
 
     @Override
@@ -491,8 +763,7 @@ public class PGraphicsWebGPU extends PGraphics {
             return;
         }
         PWebGPU.mode3d(graphicsId);
-        PWebGPU.transformSetPosition(graphicsId, eyeX, eyeY, eyeZ);
-        PWebGPU.transformLookAt(graphicsId, centerX, centerY, centerZ);
+        PWebGPU.camera(graphicsId, eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ);
     }
 
     public void cameraPosition(float x, float y, float z) {
@@ -507,6 +778,76 @@ public class PGraphicsWebGPU extends PGraphics {
             return;
         }
         PWebGPU.transformLookAt(graphicsId, x, y, z);
+    }
+
+    /** Camera-controller modes for {@link #cameraControl(int)}. */
+    public static final int ORBIT = 0;
+    public static final int PAN = 1;
+    public static final int FREE = 2;
+    public static final int NONE = 3;
+
+    /** Reset the camera to its default position. */
+    @Override
+    public void camera() {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.cameraReset(graphicsId);
+    }
+
+    /**
+     * Enable a built-in interactive camera controller, or {@link #NONE} to
+     * disable it. {@code ORBIT} drags to orbit the center, {@code PAN} drags to
+     * pan, {@code FREE} is free-fly.
+     */
+    public void cameraControl(int mode) {
+        if (graphicsId == 0) {
+            return;
+        }
+        switch (mode) {
+            case ORBIT -> PWebGPU.orbitCamera(graphicsId);
+            case PAN -> PWebGPU.panCamera(graphicsId);
+            case FREE -> PWebGPU.freeCamera(graphicsId);
+            case NONE -> PWebGPU.disableCameraController(graphicsId);
+            default -> throw new IllegalArgumentException("Unknown camera control mode: " + mode);
+        }
+    }
+
+    /** Point the orbit/pan camera at {@code (x, y, z)}. */
+    public void cameraCenter(float x, float y, float z) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.cameraSetCenter(graphicsId, x, y, z);
+    }
+
+    /** Distance of the orbit camera from its center. */
+    public void cameraDistance(float distance) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.cameraSetDistance(graphicsId, distance);
+    }
+
+    public void cameraMinDistance(float min) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.cameraSetMinDistance(graphicsId, min);
+    }
+
+    public void cameraMaxDistance(float max) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.cameraSetMaxDistance(graphicsId, max);
+    }
+
+    public void cameraSpeed(float speed) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.cameraSetSpeed(graphicsId, speed);
     }
 
     public void mode3d() {
@@ -667,6 +1008,238 @@ public class PGraphicsWebGPU extends PGraphics {
     /** A new PBR material. Configure it, then bind it with {@link #material}. */
     public PMaterial createMaterial() {
         return PMaterialWebGPU.pbr();
+    }
+
+    /** A material driven by a custom WGSL {@link Shader}. */
+    public PMaterial createMaterial(Shader shader) {
+        return PMaterialWebGPU.custom(shader);
+    }
+
+    /** Load a glTF / GLB scene; query its parts via the returned {@link Gltf}. */
+    public Gltf loadGltf(String path) {
+        return new Gltf(PWebGPU.gltfLoad(graphicsId, path), this);
+    }
+
+    // ── Text ────────────────────────────────────────────────────────────
+
+    @Override
+    public PFont createFont(String name, float size, boolean smooth, char[] charset) {
+        return new PFontWebGPU(PWebGPU.createFont(name), size);
+    }
+
+    /** Load a font from a file (e.g. .ttf / .otf) resolved against the sketch. */
+    public PFont loadFont(String path) {
+        return new PFontWebGPU(PWebGPU.loadFont(path), 0);
+    }
+
+    @Override
+    protected void textFontImpl(PFont which, float size) {
+        textFont = which;
+        if (size > 0) {
+            textSize = size;
+        }
+        if (graphicsId == 0 || !(which instanceof PFontWebGPU wf)) {
+            return;
+        }
+        PWebGPU.textFont(graphicsId, wf.id());
+        if (size > 0) {
+            PWebGPU.textSize(graphicsId, size);
+        }
+    }
+
+    @Override
+    protected void textSizeImpl(float size) {
+        textSize = size;
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.textSize(graphicsId, size);
+    }
+
+    @Override
+    public void textLeading(float leading) {
+        super.textLeading(leading);
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.textLeading(graphicsId, leading);
+    }
+
+    @Override
+    public void textAlign(int alignX, int alignY) {
+        super.textAlign(alignX, alignY);
+        if (graphicsId == 0) {
+            return;
+        }
+        byte h = switch (alignX) {
+            case CENTER -> (byte) 1;
+            case RIGHT -> (byte) 2;
+            default -> (byte) 0; // LEFT
+        };
+        byte v = switch (alignY) {
+            case TOP -> (byte) 1;
+            case CENTER -> (byte) 2;
+            case BOTTOM -> (byte) 3;
+            default -> (byte) 0; // BASELINE
+        };
+        PWebGPU.textAlign(graphicsId, h, v);
+    }
+
+    @Override
+    public float textAscent() {
+        return graphicsId == 0 ? 0 : PWebGPU.textAscent(graphicsId);
+    }
+
+    @Override
+    public float textDescent() {
+        return graphicsId == 0 ? 0 : PWebGPU.textDescent(graphicsId);
+    }
+
+    @Override
+    protected float textWidthImpl(char[] buffer, int start, int stop) {
+        if (graphicsId == 0) {
+            return 0;
+        }
+        return PWebGPU.textWidth(graphicsId, new String(buffer, start, stop - start));
+    }
+
+    @Override
+    public void text(String str, float x, float y) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.text(graphicsId, str, x, y);
+    }
+
+    @Override
+    public void text(String str, float x, float y, float z) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.text3d(graphicsId, str, x, y, z);
+    }
+
+    @Override
+    public void text(char c, float x, float y) {
+        text(String.valueOf(c), x, y);
+    }
+
+    @Override
+    public void text(char[] chars, int start, int stop, float x, float y) {
+        text(new String(chars, start, stop - start), x, y);
+    }
+
+    @Override
+    public void text(int num, float x, float y) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.textInt(graphicsId, num, x, y);
+    }
+
+    @Override
+    public void text(float num, float x, float y) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.textFloat(graphicsId, num, x, y);
+    }
+
+    @Override
+    public void text(String str, float x1, float y1, float x2, float y2) {
+        if (graphicsId == 0) {
+            return;
+        }
+        float x = x1, y = y1, w = x2, h = y2; // CORNER: x2,y2 are width,height
+        switch (rectMode) {
+            case CORNERS -> { w = x2 - x1; h = y2 - y1; }
+            case RADIUS -> { x = x1 - x2; y = y1 - y2; w = x2 * 2; h = y2 * 2; }
+            case CENTER -> { x = x1 - x2 / 2; y = y1 - y2 / 2; }
+            default -> { }
+        }
+        PWebGPU.textBox(graphicsId, str, x, y, w, h);
+    }
+
+    // Text style modes for textStyle() (0 = normal).
+    public static final int ITALIC = 1;
+    public static final int BOLD = 2;
+    public static final int BOLDITALIC = 3;
+    // Text wrap modes for textWrap().
+    public static final int WORD = 0;
+    public static final int CHAR = 1;
+
+    /** Font style: {@code 0} (normal), {@link #ITALIC}, {@link #BOLD}, {@link #BOLDITALIC}. */
+    public void textStyle(int style) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.textStyle(graphicsId, (byte) style);
+    }
+
+    /** Variable-font weight (typically 100–900). */
+    public void textWeight(float weight) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.textWeight(graphicsId, weight);
+    }
+
+    /** Line-wrap mode inside a text box: {@link #WORD} or {@link #CHAR}. */
+    public void textWrap(int mode) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.textWrap(graphicsId, (byte) mode);
+    }
+
+    /** {@code [x, y, w, h]} bounding box of {@code str} drawn at {@code (x, y)}. */
+    public float[] textBounds(String str, float x, float y) {
+        return graphicsId == 0 ? new float[4] : PWebGPU.textBounds(graphicsId, str, x, y);
+    }
+
+    /** Set an OpenType variation axis (e.g. {@code "wght"}, 600). */
+    public void textVariation(String tag, float value) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.textVariation(graphicsId, tag, value);
+    }
+
+    public void clearTextVariations() {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.clearTextVariations(graphicsId);
+    }
+
+    /** Enable an OpenType feature (e.g. {@code "smcp"}, 1). */
+    public void textFeature(String tag, int value) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.textFeature(graphicsId, tag, value);
+    }
+
+    public void noTextFeature(String tag) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.noTextFeature(graphicsId, tag);
+    }
+
+    public void clearTextFeatures() {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.clearTextFeatures(graphicsId);
+    }
+
+    /** Per-glyph colors (cycled) for the next {@code text()} call; flat RGBA array. */
+    public void textGlyphColors(float[] rgba) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.textGlyphColors(graphicsId, rgba);
     }
 
     public void material(PMaterial mat) {

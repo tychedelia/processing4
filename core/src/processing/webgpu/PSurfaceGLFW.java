@@ -427,7 +427,19 @@ public class PSurfaceGLFW implements PSurface {
 
     @Override
     public void setCursor(int kind) {
-        // TODO: implement cursor types
+        long sid = getSurfaceId();
+        if (sid == 0) {
+            return;
+        }
+        byte nativeKind = switch (kind) {
+            case PConstants.CROSS -> (byte) 1;
+            case PConstants.HAND -> (byte) 2;
+            case PConstants.MOVE -> (byte) 3;
+            case PConstants.TEXT -> (byte) 4;
+            case PConstants.WAIT -> (byte) 5;
+            default -> (byte) 0; // ARROW
+        };
+        PWebGPU.cursor(sid, nativeKind);
     }
 
     @Override

@@ -106,6 +106,15 @@ public class PParticles {
         return PWebGPU.particlesCapacity(id);
     }
 
+    /**
+     * Declare a custom attribute on this system, allocating its per-particle
+     * buffer. Built-in attributes materialize on demand, so this is only needed
+     * for custom attributes referenced by your own WGSL.
+     */
+    public void attribute(Attribute attribute) {
+        PWebGPU.particlesAttributeAdd(id, attribute.id());
+    }
+
     public Buffer buffer(Attribute attribute) {
         long bufferId = PWebGPU.particlesBuffer(id, attribute.id());
         if (bufferId == 0) return null;

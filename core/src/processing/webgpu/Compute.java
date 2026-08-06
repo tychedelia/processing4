@@ -20,8 +20,20 @@ public class Compute {
         PWebGPU.computeSetFloat(id, name, value);
     }
 
+    public void set(String name, float x, float y) {
+        PWebGPU.computeSetFloat2(id, name, x, y);
+    }
+
     public void set(String name, float x, float y, float z) {
         PWebGPU.computeSetFloat3(id, name, x, y, z);
+    }
+
+    public void set(String name, float x, float y, float z, float w) {
+        PWebGPU.computeSetFloat4(id, name, x, y, z, w);
+    }
+
+    public void set(String name, float[] matrix) {
+        PWebGPU.computeSetMat4(id, name, matrix);
     }
 
     /**

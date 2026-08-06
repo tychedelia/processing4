@@ -1,11 +1,13 @@
 package processing.webgpu;
 
+import processing.core.PBuffer;
 import processing.core.PFont;
 import processing.core.PGraphics;
 import processing.core.PImage;
 import processing.core.PMatrix;
 import processing.core.PMatrix2D;
 import processing.core.PMatrix3D;
+import processing.core.PShader;
 import processing.core.PLight;
 import processing.core.PMaterial;
 import processing.core.PShape;
@@ -996,11 +998,11 @@ public class PGraphicsWebGPU extends PGraphics {
         particles(p, p.defaultGeometry());
     }
 
-    public void fill(Buffer colorBuffer) {
+    public void fill(PBuffer colorBuffer) {
         if (graphicsId == 0) {
             return;
         }
-        PWebGPU.fillBuffer(graphicsId, colorBuffer.id());
+        PWebGPU.fillBuffer(graphicsId, ((PBufferWebGPU) colorBuffer).id());
     }
 
     // ── Materials ───────────────────────────────────────────────────────
@@ -1018,6 +1020,43 @@ public class PGraphicsWebGPU extends PGraphics {
     /** Load a glTF / GLB scene; query its parts via the returned {@link Gltf}. */
     public Gltf loadGltf(String path) {
         return new Gltf(PWebGPU.gltfLoad(graphicsId, path), this);
+    }
+
+    @Override
+    public PShader loadShader(String fragFilename) {
+        return PShaderWebGPU.load(fragFilename);
+    }
+
+    @Override
+    public PShader loadShader(String fragFilename, String vertFilename) {
+        // A WGSL module carries both stages, so the frag file is the whole shader.
+        return PShaderWebGPU.load(fragFilename);
+    }
+
+    @Override
+    public void shader(PShader shader) {
+        if (graphicsId == 0 || !(shader instanceof PShaderWebGPU sh)) {
+            return;
+        }
+        material(sh.material());
+    }
+
+    @Override
+    public void shader(PShader shader, int kind) {
+        shader(shader);
+    }
+
+    @Override
+    public void resetShader() {
+        if (graphicsId == 0) {
+            return;
+        }
+        material(createMaterial());
+    }
+
+    @Override
+    public void resetShader(int kind) {
+        resetShader();
     }
 
     // ── Text ────────────────────────────────────────────────────────────

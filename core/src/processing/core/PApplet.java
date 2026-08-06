@@ -11018,7 +11018,7 @@ public class PApplet implements PConstants {
   }
 
 
-  public void fill(processing.webgpu.Buffer colorBuffer) {
+  public void fill(processing.core.PBuffer colorBuffer) {
     webgpu().fill(colorBuffer);
   }
 

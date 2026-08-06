@@ -1,5 +1,6 @@
 package processing.webgpu;
 
+import processing.core.PBuffer;
 import processing.core.PMaterial;
 
 /** WEBGPU implementation of {@link PMaterial}, wrapping a native material. */
@@ -51,13 +52,13 @@ public class PMaterialWebGPU implements PMaterial {
     }
 
     /** Bind a per-particle color buffer as the albedo source (WEBGPU-specific). */
-    public void setAlbedo(Buffer colorBuffer) {
-        PWebGPU.materialSetAlbedoBuffer(id, colorBuffer.id());
+    public void setAlbedo(PBuffer colorBuffer) {
+        PWebGPU.materialSetAlbedoBuffer(id, ((PBufferWebGPU) colorBuffer).id());
     }
 
     /** Bind a per-particle emissive buffer (WEBGPU-specific). */
-    public void setEmissive(Buffer emissiveBuffer) {
-        PWebGPU.materialSetEmissiveBuffer(id, emissiveBuffer.id());
+    public void setEmissive(PBuffer emissiveBuffer) {
+        PWebGPU.materialSetEmissiveBuffer(id, ((PBufferWebGPU) emissiveBuffer).id());
     }
 
     @Override

@@ -3,52 +3,59 @@ package processing.webgpu;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-public class Buffer {
+import processing.core.PBuffer;
+
+public class PBufferWebGPU implements PBuffer {
 
     private long id;
     private final boolean borrowed;
 
-    Buffer(long id, boolean borrowed) {
+    PBufferWebGPU(long id, boolean borrowed) {
         this.id = id;
         this.borrowed = borrowed;
     }
 
-    public Buffer(long sizeBytes) {
+    public PBufferWebGPU(long sizeBytes) {
         this.id = PWebGPU.bufferCreate(sizeBytes);
         this.borrowed = false;
     }
 
-    public Buffer(float[] data) {
+    public PBufferWebGPU(float[] data) {
         byte[] bytes = floatsToBytes(data);
         this.id = PWebGPU.bufferCreateWithData(bytes);
         this.borrowed = false;
     }
 
-    public Buffer(byte[] data) {
+    public PBufferWebGPU(byte[] data) {
         this.id = PWebGPU.bufferCreateWithData(data);
         this.borrowed = false;
     }
 
-    public long id() {
+    long id() {
         return id;
     }
 
+    @Override
     public long size() {
         return PWebGPU.bufferSize(id);
     }
 
+    @Override
     public void write(float[] data) {
         PWebGPU.bufferWrite(id, floatsToBytes(data));
     }
 
+    @Override
     public void write(byte[] data) {
         PWebGPU.bufferWrite(id, data);
     }
 
+    @Override
     public byte[] readBytes() {
         return PWebGPU.bufferRead(id);
     }
 
+    @Override
     public float[] readFloats() {
         byte[] bytes = readBytes();
         float[] floats = new float[bytes.length / 4];
@@ -56,6 +63,7 @@ public class Buffer {
         return floats;
     }
 
+    @Override
     public void destroy() {
         if (id != 0 && !borrowed) {
             PWebGPU.bufferDestroy(id);

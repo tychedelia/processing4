@@ -1,6 +1,6 @@
 package processing.webgpu.kernels;
 
-import processing.webgpu.Buffer;
+import processing.core.PBuffer;
 import processing.webgpu.Kernel;
 import processing.webgpu.PImageWebGPU;
 import processing.webgpu.PWebGPU;
@@ -15,11 +15,11 @@ public class AttrLookup2DKernel extends Kernel {
     public AttrLookup2DKernel() { super(PWebGPU.particlesKernelAttrLookup2D()); }
 
     /** u-coordinate input (scalar). */
-    public AttrLookup2DKernel u(Buffer buf) { compute.set("op_in_u", buf); return this; }
+    public AttrLookup2DKernel u(PBuffer buf) { compute.set("op_in_u", buf); return this; }
     /** v-coordinate input (scalar). */
-    public AttrLookup2DKernel v(Buffer buf) { compute.set("op_in_v", buf); return this; }
+    public AttrLookup2DKernel v(PBuffer buf) { compute.set("op_in_v", buf); return this; }
     /** Output buffer (vec4 destination). */
-    public AttrLookup2DKernel out(Buffer buf) { compute.set("op_out", buf); return this; }
+    public AttrLookup2DKernel out(PBuffer buf) { compute.set("op_out", buf); return this; }
 
     /** Bind both the texture and its sampler from the same image. */
     public AttrLookup2DKernel ramp(PImageWebGPU img) {

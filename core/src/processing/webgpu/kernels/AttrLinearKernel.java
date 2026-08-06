@@ -1,6 +1,6 @@
 package processing.webgpu.kernels;
 
-import processing.webgpu.Buffer;
+import processing.core.PBuffer;
 import processing.webgpu.Kernel;
 import processing.webgpu.PWebGPU;
 
@@ -12,7 +12,7 @@ public class AttrLinearKernel extends Kernel {
     public AttrLinearKernel() { super(PWebGPU.particlesKernelAttrLinear()); }
 
     /** Destination buffer (read_write). */
-    public AttrLinearKernel target(Buffer buf) { compute.set("op", buf); return this; }
+    public AttrLinearKernel target(PBuffer buf) { compute.set("op", buf); return this; }
 
     public AttrLinearKernel scale(float v)  { compute.set("scale", v); return this; }
     public AttrLinearKernel offset(float v) { compute.set("offset", v); return this; }

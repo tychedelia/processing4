@@ -1,6 +1,6 @@
 package processing.webgpu.kernels;
 
-import processing.webgpu.Buffer;
+import processing.core.PBuffer;
 import processing.webgpu.Kernel;
 import processing.webgpu.PImageWebGPU;
 import processing.webgpu.PWebGPU;
@@ -15,13 +15,13 @@ public class AttrLookup1DKernel extends Kernel {
     public AttrLookup1DKernel() { super(PWebGPU.particlesKernelAttrLookup1D()); }
 
     /** Lookup coord input (scalar). */
-    public AttrLookup1DKernel input(Buffer buf) { compute.set("op_in", buf); return this; }
+    public AttrLookup1DKernel input(PBuffer buf) { compute.set("op_in", buf); return this; }
 
     /** Sampled-color output channel buffers. */
-    public AttrLookup1DKernel outR(Buffer buf) { compute.set("op_out_r", buf); return this; }
-    public AttrLookup1DKernel outG(Buffer buf) { compute.set("op_out_g", buf); return this; }
-    public AttrLookup1DKernel outB(Buffer buf) { compute.set("op_out_b", buf); return this; }
-    public AttrLookup1DKernel outA(Buffer buf) { compute.set("op_out_a", buf); return this; }
+    public AttrLookup1DKernel outR(PBuffer buf) { compute.set("op_out_r", buf); return this; }
+    public AttrLookup1DKernel outG(PBuffer buf) { compute.set("op_out_g", buf); return this; }
+    public AttrLookup1DKernel outB(PBuffer buf) { compute.set("op_out_b", buf); return this; }
+    public AttrLookup1DKernel outA(PBuffer buf) { compute.set("op_out_a", buf); return this; }
 
     /** Bind both the texture and its sampler from the same image. */
     public AttrLookup1DKernel ramp(PImageWebGPU img) {

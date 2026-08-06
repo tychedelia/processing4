@@ -5,6 +5,7 @@ import java.nio.ByteOrder;
 import java.util.Map;
 import java.util.Random;
 
+import processing.core.PBuffer;
 import processing.core.PMaterial;
 import processing.core.PShape;
 
@@ -115,10 +116,10 @@ public class PParticles {
         PWebGPU.particlesAttributeAdd(id, attribute.id());
     }
 
-    public Buffer buffer(Attribute attribute) {
+    public PBuffer buffer(Attribute attribute) {
         long bufferId = PWebGPU.particlesBuffer(id, attribute.id());
         if (bufferId == 0) return null;
-        return new Buffer(bufferId, true);
+        return new PBufferWebGPU(bufferId, true);
     }
 
     /**
@@ -128,7 +129,7 @@ public class PParticles {
      * Returns {@code null} if the system hasn't grown that attribute yet.
      * For a custom attribute, pass its {@link Attribute} to {@link #buffer(Attribute)}.
      */
-    public Buffer buffer(String name) {
+    public PBuffer buffer(String name) {
         return buffer(attributeByName(name));
     }
 
@@ -168,7 +169,7 @@ public class PParticles {
      * with no {@code life} attribute present, every slot renders.
      */
     public void scatter(float radius) {
-        Buffer positions = buffer(Attribute.position());
+        PBuffer positions = buffer(Attribute.position());
         if (positions == null) return;
         int cap = capacity();
         float[] data = new float[cap * 3];

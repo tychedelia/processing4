@@ -1,5 +1,7 @@
 package processing.webgpu;
 
+import processing.core.PBuffer;
+
 public class Compute {
 
     private long id;
@@ -45,8 +47,8 @@ public class Compute {
         PWebGPU.computeSetUInt(id, name, value);
     }
 
-    public void set(String name, Buffer buffer) {
-        PWebGPU.computeSetBuffer(id, name, buffer.id());
+    public void set(String name, PBuffer buffer) {
+        PWebGPU.computeSetBuffer(id, name, ((PBufferWebGPU) buffer).id());
     }
 
     public void set(String name, PImageWebGPU image) {

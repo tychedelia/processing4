@@ -15,18 +15,18 @@ public class PBufferWebGPU implements PBuffer {
         this.borrowed = borrowed;
     }
 
-    public PBufferWebGPU(long sizeBytes) {
+    PBufferWebGPU(long sizeBytes) {
         this.id = PWebGPU.bufferCreate(sizeBytes);
         this.borrowed = false;
     }
 
-    public PBufferWebGPU(float[] data) {
+    PBufferWebGPU(float[] data) {
         byte[] bytes = floatsToBytes(data);
         this.id = PWebGPU.bufferCreateWithData(bytes);
         this.borrowed = false;
     }
 
-    public PBufferWebGPU(byte[] data) {
+    PBufferWebGPU(byte[] data) {
         this.id = PWebGPU.bufferCreateWithData(data);
         this.borrowed = false;
     }

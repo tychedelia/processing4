@@ -10988,112 +10988,272 @@ public class PApplet implements PConstants {
   // same way loadShader()/shader() forward to the OpenGL renderer. These
   // require size(w, h, WEBGPU).
 
-  public processing.webgpu.PParticles createParticles(int capacity) {
-    return webgpu().createParticles(capacity);
+  public PParticles createParticles(int capacity) {
+    return g.createParticles(capacity);
   }
 
 
-  public processing.webgpu.PParticles createParticles(PShape source) {
-    return webgpu().createParticles(source);
+
+  public PParticles createParticles(PShape source) {
+    return g.createParticles(source);
   }
 
 
-  public void particles(processing.webgpu.PParticles p) {
-    webgpu().particles(p);
+  public processing.webgpu.Gltf loadGltf(String path) {
+    return g.loadGltf(path);
   }
 
 
-  public void particles(processing.webgpu.PParticles p, PShape shape) {
-    webgpu().particles(p, shape);
+
+  public void cameraControl(int mode) {
+    g.cameraControl(mode);
+  }
+
+
+  public void cameraCenter(float x, float y, float z) {
+    g.cameraCenter(x, y, z);
+  }
+
+
+  public void cameraDistance(float distance) {
+    g.cameraDistance(distance);
+  }
+
+
+  public void cameraMinDistance(float min) {
+    g.cameraMinDistance(min);
+  }
+
+
+  public void cameraMaxDistance(float max) {
+    g.cameraMaxDistance(max);
+  }
+
+
+  public void cameraSpeed(float speed) {
+    g.cameraSpeed(speed);
+  }
+
+
+  public void textStyle(int style) {
+    g.textStyle(style);
+  }
+
+
+  public void textWeight(float weight) {
+    g.textWeight(weight);
+  }
+
+
+  public void textWrap(int mode) {
+    g.textWrap(mode);
+  }
+
+
+  public float[] textBounds(String str, float x, float y) {
+    return g.textBounds(str, x, y);
+  }
+
+
+  public void textVariation(String tag, float value) {
+    g.textVariation(tag, value);
+  }
+
+
+  public void clearTextVariations() {
+    g.clearTextVariations();
+  }
+
+
+  public void textFeature(String tag, int value) {
+    g.textFeature(tag, value);
+  }
+
+
+  public void noTextFeature(String tag) {
+    g.noTextFeature(tag);
+  }
+
+
+  public void clearTextFeatures() {
+    g.clearTextFeatures();
+  }
+
+
+  public void textGlyphColors(float[] rgba) {
+    g.textGlyphColors(rgba);
+  }
+
+
+  public void particles(PParticles p) {
+    g.particles(p);
+  }
+
+
+  public void particles(PParticles p, PShape shape) {
+    g.particles(p, shape);
   }
 
 
   public PMaterial createMaterial() {
-    return webgpu().createMaterial();
+    return g.createMaterial();
   }
 
 
   public void material(PMaterial material) {
-    webgpu().material(material);
+    g.material(material);
+  }
+
+
+  public PCompute createCompute(String wgslSource) {
+    return g.createCompute(wgslSource);
+  }
+
+
+  public PBuffer createBuffer(long sizeBytes) {
+    return g.createBuffer(sizeBytes);
+  }
+
+
+  public PBuffer createBuffer(float[] data) {
+    return g.createBuffer(data);
+  }
+
+
+  public PBuffer createBuffer(byte[] data) {
+    return g.createBuffer(data);
   }
 
 
   public void fill(processing.core.PBuffer colorBuffer) {
-    webgpu().fill(colorBuffer);
+    g.fill(colorBuffer);
+  }
+
+
+  public void cone(float radius, float height) {
+    g.cone(radius, height);
+  }
+
+
+  public void cone(float radius, float height, int detail) {
+    g.cone(radius, height, detail);
+  }
+
+
+  public void cylinder(float radius, float height) {
+    g.cylinder(radius, height);
+  }
+
+
+  public void cylinder(float radius, float height, int detail) {
+    g.cylinder(radius, height, detail);
+  }
+
+
+  public void torus(float radius, float tubeRadius) {
+    g.torus(radius, tubeRadius);
+  }
+
+
+  public void torus(float radius, float tubeRadius, int majorSegments, int minorSegments) {
+    g.torus(radius, tubeRadius, majorSegments, minorSegments);
+  }
+
+
+  public void plane(float width, float height) {
+    g.plane(width, height);
+  }
+
+
+  public void capsule(float radius, float length) {
+    g.capsule(radius, length);
+  }
+
+
+  public void capsule(float radius, float length, int detail) {
+    g.capsule(radius, length, detail);
+  }
+
+
+  public void conicalFrustum(float radiusTop, float radiusBottom, float height) {
+    g.conicalFrustum(radiusTop, radiusBottom, height);
+  }
+
+
+  public void conicalFrustum(float radiusTop, float radiusBottom, float height, int detail) {
+    g.conicalFrustum(radiusTop, radiusBottom, height, detail);
+  }
+
+
+  public void tetrahedron(float radius) {
+    g.tetrahedron(radius);
   }
 
 
   public PLight directionalLight(float r, float g, float b, float illuminance) {
-    return webgpu().directionalLight(r, g, b, illuminance);
+    return this.g.directionalLight(r, g, b, illuminance);
   }
 
 
   public PLight pointLight(float r, float g, float b,
                                              float intensity, float range, float radius,
                                              float x, float y, float z) {
-    return webgpu().pointLight(r, g, b, intensity, range, radius, x, y, z);
+    return this.g.pointLight(r, g, b, intensity, range, radius, x, y, z);
   }
 
 
   public PLight spotLight(float r, float g, float b,
                                             float intensity, float range, float radius,
                                             float innerAngle, float outerAngle) {
-    return webgpu().spotLight(r, g, b, intensity, range, radius, innerAngle, outerAngle);
+    return this.g.spotLight(r, g, b, intensity, range, radius, innerAngle, outerAngle);
   }
 
 
   public void cameraPosition(float x, float y, float z) {
-    webgpu().cameraPosition(x, y, z);
+    g.cameraPosition(x, y, z);
   }
 
 
   public void cameraLookAt(float x, float y, float z) {
-    webgpu().cameraLookAt(x, y, z);
+    g.cameraLookAt(x, y, z);
   }
 
 
   public void mode3d() {
-    webgpu().mode3d();
+    g.mode3d();
   }
 
 
   public float worldX(float sx, float sy, float depth) {
-    return webgpu().worldX(sx, sy, depth);
+    return g.worldX(sx, sy, depth);
   }
 
 
   public float worldY(float sx, float sy, float depth) {
-    return webgpu().worldY(sx, sy, depth);
+    return g.worldY(sx, sy, depth);
   }
 
 
   public float worldZ(float sx, float sy, float depth) {
-    return webgpu().worldZ(sx, sy, depth);
+    return g.worldZ(sx, sy, depth);
   }
 
 
   public void bloom(float intensity) {
-    webgpu().bloom(intensity);
+    g.bloom(intensity);
   }
 
 
   public void bloom(float intensity, float threshold) {
-    webgpu().bloom(intensity, threshold);
+    g.bloom(intensity, threshold);
   }
 
 
   public void noBloom() {
-    webgpu().noBloom();
+    g.noBloom();
   }
 
 
-  private processing.webgpu.PGraphicsWebGPU webgpu() {
-    if (g instanceof processing.webgpu.PGraphicsWebGPU) {
-      return (processing.webgpu.PGraphicsWebGPU) g;
-    }
-    throw new RuntimeException(
-      "particles require the WEBGPU renderer — call size(w, h, WEBGPU)");
-  }
 
 
   /**

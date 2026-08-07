@@ -3,8 +3,7 @@ package processing.webgpu;
 import processing.core.PBuffer;
 import processing.core.PMaterial;
 
-/** WEBGPU implementation of {@link PMaterial}, wrapping a native material. */
-public class PMaterialWebGPU implements PMaterial {
+public class PMaterialWebGPU extends PUniformsWebGPU implements PMaterial {
 
     private long id;
 
@@ -12,53 +11,95 @@ public class PMaterialWebGPU implements PMaterial {
         this.id = id;
     }
 
-    /** Wrap an existing native material (e.g. one loaded from glTF). */
     static PMaterial fromId(long id) {
         return new PMaterialWebGPU(id);
     }
 
-    public static PMaterial pbr() {
+    static PMaterial pbr() {
         return new PMaterialWebGPU(PWebGPU.materialCreatePbr());
     }
 
-    public static PMaterial unlit() {
+    static PMaterial unlit() {
         PMaterial mat = pbr();
-        mat.set("unlit", 1.0f);
+        mat.unlit(true);
         return mat;
     }
 
-    /** A material backed by a custom WGSL shader (WEBGPU-specific). */
-    public static PMaterial custom(Shader shader) {
-        return new PMaterialWebGPU(PWebGPU.materialCreateCustom(shader.id()));
+    static PMaterial custom(long shaderId) {
+        return new PMaterialWebGPU(PWebGPU.materialCreateCustom(shaderId));
     }
 
+    @Override
     long id() {
         return id;
     }
 
     @Override
-    public void set(String name, float value) {
-        PWebGPU.materialSetFloat(id, name, value);
+    public void albedo(float r, float g, float b, float a) {
+        PWebGPU.materialSetFloat4(id, "color", r, g, b, a);
     }
 
     @Override
-    public void set(String name, float r, float g, float b, float a) {
-        PWebGPU.materialSetFloat4(id, name, r, g, b, a);
+    public void metalness(float value) {
+        PWebGPU.materialSetFloat(id, "metallic", value);
     }
 
     @Override
-    public void setAlbedo(float r, float g, float b, float a) {
-        PWebGPU.materialSetAlbedoColor(id, r, g, b, a);
+    public void roughness(float value) {
+        PWebGPU.materialSetFloat(id, "roughness", value);
     }
 
-    /** Bind a per-particle color buffer as the albedo source (WEBGPU-specific). */
-    public void setAlbedo(PBuffer colorBuffer) {
+    @Override
+    public void reflectance(float value) {
+        PWebGPU.materialSetFloat(id, "reflectance", value);
+    }
+
+    @Override
+    public void emissive(float r, float g, float b, float a) {
+        PWebGPU.materialSetFloat4(id, "emissive", r, g, b, a);
+    }
+
+    public void albedo(PBuffer colorBuffer) {
         PWebGPU.materialSetAlbedoBuffer(id, ((PBufferWebGPU) colorBuffer).id());
     }
 
-    /** Bind a per-particle emissive buffer (WEBGPU-specific). */
-    public void setEmissive(PBuffer emissiveBuffer) {
+    public void emissive(PBuffer emissiveBuffer) {
         PWebGPU.materialSetEmissiveBuffer(id, ((PBufferWebGPU) emissiveBuffer).id());
+    }
+
+    @Override
+    public void opaque() {
+        PWebGPU.materialSetAlphaMode(id, 0, 0f);
+    }
+
+    @Override
+    public void transparent() {
+        PWebGPU.materialSetAlphaMode(id, 2, 0f);
+    }
+
+    @Override
+    public void mask(float cutoff) {
+        PWebGPU.materialSetAlphaMode(id, 1, cutoff);
+    }
+
+    @Override
+    public void doubleSided(boolean value) {
+        PWebGPU.materialSetDoubleSided(id, value);
+    }
+
+    @Override
+    public void unlit(boolean value) {
+        PWebGPU.materialSetUnlit(id, value);
+    }
+
+    @Override
+    public void depthWrite(boolean value) {
+        PWebGPU.materialSetDepthWrite(id, value);
+    }
+
+    public void customBlend(int colorSrc, int colorDst, int colorOp,
+                            int alphaSrc, int alphaDst, int alphaOp) {
+        PWebGPU.materialSetCustomBlendMode(id, colorSrc, colorDst, colorOp, alphaSrc, alphaDst, alphaOp);
     }
 
     @Override

@@ -686,11 +686,6 @@ public class PWebGPU {
         checkError();
     }
 
-    public static void materialSetAlbedoColor(long matId, float r, float g, float b, float a) {
-        processing_material_set_albedo_color(matId, r, g, b, a);
-        checkError();
-    }
-
     public static void materialSetAlbedoBuffer(long matId, long bufferId) {
         processing_material_set_albedo_buffer(matId, bufferId);
         checkError();
@@ -698,6 +693,33 @@ public class PWebGPU {
 
     public static void materialSetEmissiveBuffer(long matId, long bufferId) {
         processing_material_set_emissive_buffer(matId, bufferId);
+        checkError();
+    }
+
+    public static void materialSetAlphaMode(long matId, int mode, float cutoff) {
+        processing_material_set_alpha_mode(matId, (byte) mode, cutoff);
+        checkError();
+    }
+
+    public static void materialSetDoubleSided(long matId, boolean value) {
+        processing_material_set_double_sided(matId, value);
+        checkError();
+    }
+
+    public static void materialSetUnlit(long matId, boolean value) {
+        processing_material_set_unlit(matId, value);
+        checkError();
+    }
+
+    public static void materialSetDepthWrite(long matId, boolean value) {
+        processing_material_set_depth_write(matId, value);
+        checkError();
+    }
+
+    public static void materialSetCustomBlendMode(long matId, int colorSrc, int colorDst, int colorOp,
+                                                  int alphaSrc, int alphaDst, int alphaOp) {
+        processing_material_set_custom_blend_mode(matId, (byte) colorSrc, (byte) colorDst, (byte) colorOp,
+                (byte) alphaSrc, (byte) alphaDst, (byte) alphaOp);
         checkError();
     }
 

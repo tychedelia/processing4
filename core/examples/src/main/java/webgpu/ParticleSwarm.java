@@ -1,7 +1,7 @@
 package webgpu;
 
 import processing.core.PApplet;
-import processing.webgpu.PParticles;
+import processing.core.PParticles;
 
 /**
  * The simplest particle system: 40k particles, scattered into a ball, pushed

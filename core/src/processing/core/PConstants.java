@@ -273,6 +273,31 @@ public interface PConstants {
   int DODGE      = 1 << 12;
   int BURN       = 1 << 13;
 
+  // particle kernels (PParticles.apply / createKernel)
+
+  int NOISE         = 0;
+  int CURL_NOISE    = 1;
+  int FLOCK         = 2;
+  int ATTRACT       = 3;
+  int REPEL         = 4;
+  int VORTEX        = 5;
+  int DRAG          = 6;
+  int AGE           = 7;
+  int FORCE         = 8;
+  int GRAVITY       = 9;
+  int UPDATE        = 10;
+  int INTEGRATE     = 11;
+  int BOUNDS        = 12;
+  int TRANSFORM     = 13;
+  int IMPULSE       = 14;
+  int ORIENT        = 15;
+  int FIELD         = 16;
+  int ATTR_LINEAR   = 17;
+  int ATTR_COMBINE  = 18;
+  int ATTR_MIX      = 19;
+  int ATTR_LOOKUP1D = 20;
+  int ATTR_LOOKUP2D = 21;
+
   // for messages
 
   int CHATTER   = 0;

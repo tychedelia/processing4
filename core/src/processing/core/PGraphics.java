@@ -2007,6 +2007,158 @@ public class PGraphics extends PImage implements PConstants {
   }
 
 
+  // ── WEBGPU renderer methods (unsupported on other renderers) ─────────────
+
+  public PParticles createParticles(int capacity) {
+    showMissingWarning("createParticles");
+    return null;
+  }
+
+  public PParticles createParticles(PShape source) {
+    showMissingWarning("createParticles");
+    return null;
+  }
+
+  public void particles(PParticles p) {
+    showMissingWarning("particles");
+  }
+
+  public void particles(PParticles p, PShape shape) {
+    showMissingWarning("particles");
+  }
+
+  public PMaterial createMaterial() {
+    showMissingWarning("createMaterial");
+    return null;
+  }
+
+  public void material(PMaterial material) {
+    showMissingWarning("material");
+  }
+
+  public PCompute createCompute(String wgslSource) {
+    showMissingWarning("createCompute");
+    return null;
+  }
+
+  public PBuffer createBuffer(long sizeBytes) {
+    showMissingWarning("createBuffer");
+    return null;
+  }
+
+  public PBuffer createBuffer(float[] data) {
+    showMissingWarning("createBuffer");
+    return null;
+  }
+
+  public PBuffer createBuffer(byte[] data) {
+    showMissingWarning("createBuffer");
+    return null;
+  }
+
+  public processing.webgpu.Gltf loadGltf(String path) {
+    showMissingWarning("loadGltf");
+    return null;
+  }
+
+  public void fill(PBuffer colorBuffer) {
+    showMissingWarning("fill");
+  }
+
+  public PLight directionalLight(float r, float g, float b, float illuminance) {
+    showMissingWarning("directionalLight");
+    return null;
+  }
+
+  public PLight pointLight(float r, float g, float b,
+                           float intensity, float range, float radius,
+                           float x, float y, float z) {
+    showMissingWarning("pointLight");
+    return null;
+  }
+
+  public PLight spotLight(float r, float g, float b,
+                          float intensity, float range, float radius,
+                          float innerAngle, float outerAngle) {
+    showMissingWarning("spotLight");
+    return null;
+  }
+
+  public void cone(float radius, float height) { showMissingWarning("cone"); }
+
+  public void cone(float radius, float height, int detail) { showMissingWarning("cone"); }
+
+  public void cylinder(float radius, float height) { showMissingWarning("cylinder"); }
+
+  public void cylinder(float radius, float height, int detail) { showMissingWarning("cylinder"); }
+
+  public void torus(float radius, float tubeRadius) { showMissingWarning("torus"); }
+
+  public void torus(float radius, float tubeRadius, int majorSegments, int minorSegments) { showMissingWarning("torus"); }
+
+  public void plane(float width, float height) { showMissingWarning("plane"); }
+
+  public void capsule(float radius, float length) { showMissingWarning("capsule"); }
+
+  public void capsule(float radius, float length, int detail) { showMissingWarning("capsule"); }
+
+  public void conicalFrustum(float radiusTop, float radiusBottom, float height) { showMissingWarning("conicalFrustum"); }
+
+  public void conicalFrustum(float radiusTop, float radiusBottom, float height, int detail) { showMissingWarning("conicalFrustum"); }
+
+  public void tetrahedron(float radius) { showMissingWarning("tetrahedron"); }
+
+  public void cameraControl(int mode) { showMissingWarning("cameraControl"); }
+
+  public void cameraCenter(float x, float y, float z) { showMissingWarning("cameraCenter"); }
+
+  public void cameraDistance(float distance) { showMissingWarning("cameraDistance"); }
+
+  public void cameraMinDistance(float min) { showMissingWarning("cameraMinDistance"); }
+
+  public void cameraMaxDistance(float max) { showMissingWarning("cameraMaxDistance"); }
+
+  public void cameraSpeed(float speed) { showMissingWarning("cameraSpeed"); }
+
+  public void cameraLookAt(float x, float y, float z) { showMissingWarning("cameraLookAt"); }
+
+  public void cameraPosition(float x, float y, float z) { showMissingWarning("cameraPosition"); }
+
+  public void bloom(float intensity) { showMissingWarning("bloom"); }
+
+  public void bloom(float intensity, float threshold) { showMissingWarning("bloom"); }
+
+  public void noBloom() { showMissingWarning("noBloom"); }
+
+  public void mode3d() { showMissingWarning("mode3d"); }
+
+  public void textStyle(int style) { showMissingWarning("textStyle"); }
+
+  public void textWeight(float weight) { showMissingWarning("textWeight"); }
+
+  public void textWrap(int mode) { showMissingWarning("textWrap"); }
+
+  public float[] textBounds(String str, float x, float y) { showMissingWarning("textBounds"); return null; }
+
+  public void textVariation(String tag, float value) { showMissingWarning("textVariation"); }
+
+  public void clearTextVariations() { showMissingWarning("clearTextVariations"); }
+
+  public void textFeature(String tag, int value) { showMissingWarning("textFeature"); }
+
+  public void noTextFeature(String tag) { showMissingWarning("noTextFeature"); }
+
+  public void clearTextFeatures() { showMissingWarning("clearTextFeatures"); }
+
+  public void textGlyphColors(float[] rgba) { showMissingWarning("textGlyphColors"); }
+
+  public float worldX(float sx, float sy, float depth) { showMissingWarning("worldX"); return 0; }
+
+  public float worldY(float sx, float sy, float depth) { showMissingWarning("worldY"); return 0; }
+
+  public float worldZ(float sx, float sy, float depth) { showMissingWarning("worldZ"); return 0; }
+
+
 
   //////////////////////////////////////////////////////////////
 

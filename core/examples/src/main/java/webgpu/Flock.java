@@ -1,7 +1,7 @@
 package webgpu;
 
 import processing.core.PApplet;
-import processing.webgpu.PParticles;
+import processing.core.PParticles;
 
 /**
  * A GPU flock of 20k boids. Still no schema and no shader code: the field

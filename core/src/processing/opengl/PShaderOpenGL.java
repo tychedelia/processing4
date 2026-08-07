@@ -572,6 +572,13 @@ public class PShaderOpenGL implements PShader, PConstants {
   }
 
 
+  @Override
+  public void set(String name, PBuffer buffer) {
+    throw new UnsupportedOperationException(
+      "The OpenGL renderer does not support GPU buffer bindings (PBuffer).");
+  }
+
+
   /**
    * Extra initialization method that can be used by subclasses, called after
    * compiling and attaching the vertex and fragment shaders, and before

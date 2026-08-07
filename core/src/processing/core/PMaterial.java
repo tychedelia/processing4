@@ -1,22 +1,28 @@
 package processing.core;
 
-/**
- * A surface material — how a shape or particle system catches light. Bind one
- * as the active material with {@code material(m)}, the same way {@code shader(s)}
- * binds a shader. Renderer-provided (e.g. {@code PMaterialWebGPU}); create one
- * with {@code createMaterial()}.
- */
-public interface PMaterial {
+public interface PMaterial extends PUniforms {
 
-    /** Set a named scalar parameter. */
-    void set(String name, float value);
+    void albedo(float r, float g, float b, float a);
 
-    /** Set a named vec4 parameter. */
-    void set(String name, float r, float g, float b, float a);
+    void metalness(float value);
 
-    /** Base (albedo) color. */
-    void setAlbedo(float r, float g, float b, float a);
+    void roughness(float value);
 
-    /** Release native resources. */
+    void reflectance(float value);
+
+    void emissive(float r, float g, float b, float a);
+
+    void opaque();
+
+    void transparent();
+
+    void mask(float cutoff);
+
+    void doubleSided(boolean value);
+
+    void unlit(boolean value);
+
+    void depthWrite(boolean value);
+
     void destroy();
 }

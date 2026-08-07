@@ -17,7 +17,7 @@ public class Attribute {
         this.id = PWebGPU.geometryAttributeCreate(name, (byte) format);
     }
 
-    public long id() {
+    long id() {
         return id;
     }
 

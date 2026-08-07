@@ -1,12 +1,14 @@
 package processing.webgpu;
 
 import processing.core.PBuffer;
+import processing.core.PCompute;
 import processing.core.PFont;
 import processing.core.PGraphics;
 import processing.core.PImage;
 import processing.core.PMatrix;
 import processing.core.PMatrix2D;
 import processing.core.PMatrix3D;
+import processing.core.PParticles;
 import processing.core.PShader;
 import processing.core.PLight;
 import processing.core.PMaterial;
@@ -99,6 +101,10 @@ public class PGraphicsWebGPU extends PGraphics {
         if (surfaceId != 0) {
             PWebGPU.destroySurface(surfaceId);
             surfaceId = 0;
+        }
+        if (graphicsId != 0) {
+            PWebGPU.graphicsDestroy(graphicsId);
+            graphicsId = 0;
         }
         PWebGPU.exit();
     }
@@ -459,6 +465,75 @@ public class PGraphicsWebGPU extends PGraphics {
         long sphereGeometry = PWebGPU.geometrySphere(r, sphereDetailU, sphereDetailV);
         PWebGPU.model(graphicsId, sphereGeometry);
         pendingDestroy.add(sphereGeometry);
+    }
+
+    public void cone(float radius, float height) {
+        cone(radius, height, 24);
+    }
+
+    public void cone(float radius, float height, int detail) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.cone(graphicsId, radius, height, detail);
+    }
+
+    public void cylinder(float radius, float height) {
+        cylinder(radius, height, 24);
+    }
+
+    public void cylinder(float radius, float height, int detail) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.cylinder(graphicsId, radius, height, detail);
+    }
+
+    public void torus(float radius, float tubeRadius) {
+        torus(radius, tubeRadius, 24, 16);
+    }
+
+    public void torus(float radius, float tubeRadius, int majorSegments, int minorSegments) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.torus(graphicsId, radius, tubeRadius, majorSegments, minorSegments);
+    }
+
+    public void plane(float width, float height) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.plane(graphicsId, width, height);
+    }
+
+    public void capsule(float radius, float length) {
+        capsule(radius, length, 24);
+    }
+
+    public void capsule(float radius, float length, int detail) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.capsule(graphicsId, radius, length, detail);
+    }
+
+    public void conicalFrustum(float radiusTop, float radiusBottom, float height) {
+        conicalFrustum(radiusTop, radiusBottom, height, 24);
+    }
+
+    public void conicalFrustum(float radiusTop, float radiusBottom, float height, int detail) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.conicalFrustum(graphicsId, radiusTop, radiusBottom, height, detail);
+    }
+
+    public void tetrahedron(float radius) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.tetrahedron(graphicsId, radius);
     }
 
     // ── Vertex shapes ───────────────────────────────────────────────────
@@ -967,35 +1042,32 @@ public class PGraphicsWebGPU extends PGraphics {
 
     // ── PParticles ──────────────────────────────────────────────────────��
 
-    /**
-     * A new particle system of {@code capacity} particles. It starts with only
-     * a {@code position} attribute; the attributes its kernels need
-     * (velocity, life, …) materialize on demand as you {@link PParticles#apply}
-     * them. Seed positions with {@link PParticles#scatter} or emit into it.
-     */
     public PParticles createParticles(int capacity) {
-        return new PParticles(capacity, Attribute.position());
+        return new PParticlesWebGPU(capacity, Attribute.position());
     }
 
-    /** PParticles seeded from a shape's vertices — capacity is its vertex count. */
+    public PParticles createParticles(int capacity, Attribute... attributes) {
+        return new PParticlesWebGPU(capacity, attributes);
+    }
+
     public PParticles createParticles(PShape source) {
-        return PParticles.fromGeometryId(PShapeWebGPU.geometryId(source), Attribute.position());
+        return PParticlesWebGPU.fromGeometryId(PShapeWebGPU.geometryId(source), Attribute.position());
     }
 
     public void particles(PParticles p, PShape shape) {
         if (graphicsId == 0) {
             return;
         }
-        PWebGPU.particlesDraw(graphicsId, p.id(), PShapeWebGPU.geometryId(shape));
+        PWebGPU.particlesDraw(graphicsId, ((PParticlesWebGPU) p).id(), PShapeWebGPU.geometryId(shape));
     }
 
-    /** Draw {@code p} with a default sphere sprite and unlit material. */
     public void particles(PParticles p) {
         if (graphicsId == 0) {
             return;
         }
-        material(p.defaultMaterial());
-        particles(p, p.defaultGeometry());
+        PParticlesWebGPU pw = (PParticlesWebGPU) p;
+        material(pw.defaultMaterial());
+        particles(pw, pw.defaultGeometry());
     }
 
     public void fill(PBuffer colorBuffer) {
@@ -1007,17 +1079,26 @@ public class PGraphicsWebGPU extends PGraphics {
 
     // ── Materials ───────────────────────────────────────────────────────
 
-    /** A new PBR material. Configure it, then bind it with {@link #material}. */
     public PMaterial createMaterial() {
         return PMaterialWebGPU.pbr();
     }
 
-    /** A material driven by a custom WGSL {@link Shader}. */
-    public PMaterial createMaterial(Shader shader) {
-        return PMaterialWebGPU.custom(shader);
+    public PCompute createCompute(String wgslSource) {
+        return new PComputeWebGPU(PWebGPU.computeCreate(PWebGPU.shaderCreate(wgslSource)));
     }
 
-    /** Load a glTF / GLB scene; query its parts via the returned {@link Gltf}. */
+    public PBuffer createBuffer(long sizeBytes) {
+        return new PBufferWebGPU(sizeBytes);
+    }
+
+    public PBuffer createBuffer(float[] data) {
+        return new PBufferWebGPU(data);
+    }
+
+    public PBuffer createBuffer(byte[] data) {
+        return new PBufferWebGPU(data);
+    }
+
     public Gltf loadGltf(String path) {
         return new Gltf(PWebGPU.gltfLoad(graphicsId, path), this);
     }

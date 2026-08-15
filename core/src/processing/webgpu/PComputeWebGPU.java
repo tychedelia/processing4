@@ -6,6 +6,10 @@ public class PComputeWebGPU extends PUniformsWebGPU implements PCompute {
 
     private long id;
 
+    /** True for FLOCK kernels: they need the neighbor grid built and bound
+     *  each apply, so PParticlesWebGPU routes them through particlesFlock. */
+    boolean flockKernel;
+
     PComputeWebGPU(long id) {
         this.id = id;
     }

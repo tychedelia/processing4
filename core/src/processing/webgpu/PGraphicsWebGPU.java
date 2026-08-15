@@ -31,11 +31,11 @@ public class PGraphicsWebGPU extends PGraphics {
 
     @Override
     public PSurface createSurface() {
-        String backend = System.getProperty("processing.webgpu.surface", "glfw");
-        if ("newt".equalsIgnoreCase(backend)) {
-            return surface = new PSurfaceNEWT(this);
+        String backend = System.getProperty("processing.webgpu.surface", "newt");
+        if ("glfw".equalsIgnoreCase(backend)) {
+            return surface = new PSurfaceGLFW(this);
         }
-        return surface = new PSurfaceGLFW(this);
+        return surface = new PSurfaceNEWT(this);
     }
 
     protected void initWebGPUSurface(long windowHandle, long displayHandle, int width, int height, float scaleFactor) {
@@ -354,6 +354,40 @@ public class PGraphicsWebGPU extends PGraphics {
             default -> PWebGPU.BLEND_MODE_BLEND;
         };
         PWebGPU.setBlendMode(graphicsId, nativeMode);
+    }
+
+    // ── Custom blend factors/operations, for {@link #customBlendMode} ───
+    public static final int BLEND_ZERO                = 0;
+    public static final int BLEND_ONE                 = 1;
+    public static final int BLEND_SRC                 = 2;
+    public static final int BLEND_ONE_MINUS_SRC       = 3;
+    public static final int BLEND_SRC_ALPHA           = 4;
+    public static final int BLEND_ONE_MINUS_SRC_ALPHA = 5;
+    public static final int BLEND_DST                 = 6;
+    public static final int BLEND_ONE_MINUS_DST       = 7;
+    public static final int BLEND_DST_ALPHA           = 8;
+    public static final int BLEND_ONE_MINUS_DST_ALPHA = 9;
+    public static final int BLEND_SRC_ALPHA_SATURATED = 10;
+    public static final int BLEND_OP_ADD              = 0;
+    public static final int BLEND_OP_SUBTRACT         = 1;
+    public static final int BLEND_OP_REVERSE_SUBTRACT = 2;
+    public static final int BLEND_OP_MIN              = 3;
+    public static final int BLEND_OP_MAX              = 4;
+
+    /**
+     * Set a fully custom blend state from the {@code BLEND_*} factor and
+     * {@code BLEND_OP_*} operation constants, e.g. classic alpha-over is
+     * {@code customBlendMode(BLEND_SRC_ALPHA, BLEND_ONE_MINUS_SRC_ALPHA,
+     * BLEND_OP_ADD, BLEND_ONE, BLEND_ONE_MINUS_SRC_ALPHA, BLEND_OP_ADD)}.
+     * Reset with {@link #blendMode(int)}.
+     */
+    public void customBlendMode(int colorSrc, int colorDst, int colorOp,
+                                int alphaSrc, int alphaDst, int alphaOp) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.setCustomBlendMode(graphicsId, (byte) colorSrc, (byte) colorDst, (byte) colorOp,
+                                   (byte) alphaSrc, (byte) alphaDst, (byte) alphaOp);
     }
 
     // ── 2D primitives ───────────────────────────────────────────────────
@@ -1058,6 +1092,19 @@ public class PGraphicsWebGPU extends PGraphics {
         if (graphicsId == 0) {
             return;
         }
+        PParticlesWebGPU pw = (PParticlesWebGPU) p;
+        // Bind the system's default (unlit) material so instances are visible
+        // without a light or an explicit material(). Use the 3-arg overload to
+        // supply your own.
+        material(pw.defaultMaterial());
+        PWebGPU.particlesDraw(graphicsId, pw.id(), PShapeWebGPU.geometryId(shape));
+    }
+
+    public void particles(PParticles p, PShape shape, PMaterial mat) {
+        if (graphicsId == 0) {
+            return;
+        }
+        material(mat);
         PWebGPU.particlesDraw(graphicsId, ((PParticlesWebGPU) p).id(), PShapeWebGPU.geometryId(shape));
     }
 
@@ -1068,6 +1115,17 @@ public class PGraphicsWebGPU extends PGraphics {
         PParticlesWebGPU pw = (PParticlesWebGPU) p;
         material(pw.defaultMaterial());
         particles(pw, pw.defaultGeometry());
+    }
+
+    /**
+     * Draw a dynamic-topology target: whatever primitives kernels added to
+     * it this frame, with its own topology and per-vertex colors.
+     */
+    public void particles(PPrimitives primitives) {
+        if (graphicsId == 0) {
+            return;
+        }
+        PWebGPU.particlesDrawTopology(graphicsId, primitives.field(), 0, primitives.topology());
     }
 
     public void fill(PBuffer colorBuffer) {
@@ -1085,6 +1143,16 @@ public class PGraphicsWebGPU extends PGraphics {
 
     public PCompute createCompute(String wgslSource) {
         return new PComputeWebGPU(PWebGPU.computeCreate(PWebGPU.shaderCreate(wgslSource)));
+    }
+
+    /**
+     * Load a compute shader from a {@code .wgsl}/{@code .wesl} file path.
+     * Unlike {@link #createCompute(String)}, the WESL compiler resolves
+     * {@code import} statements (e.g. {@code lygia::…},
+     * {@code processing::prims}) against the loader's module roots.
+     */
+    public PCompute loadCompute(String path) {
+        return new PComputeWebGPU(PWebGPU.computeCreate(PWebGPU.shaderLoad(path)));
     }
 
     public PBuffer createBuffer(long sizeBytes) {
@@ -1138,6 +1206,59 @@ public class PGraphicsWebGPU extends PGraphics {
     @Override
     public void resetShader(int kind) {
         resetShader();
+    }
+
+    // ── Filters ─────────────────────────────────────────────────────────
+
+    @Override
+    public void filter(int kind) {
+        if (graphicsId == 0) {
+            return;
+        }
+        long filterId = builtinFilter(kind);
+        if (filterId != 0) {
+            PWebGPU.graphicsApplyFilter(graphicsId, filterId);
+        }
+    }
+
+    @Override
+    public void filter(int kind, float param) {
+        if (graphicsId == 0) {
+            return;
+        }
+        long filterId = builtinFilter(kind);
+        if (filterId == 0) {
+            return;
+        }
+        switch (kind) {
+            case BLUR      -> PWebGPU.computeSetFloat(filterId, "radius", param);
+            case THRESHOLD -> PWebGPU.computeSetFloat(filterId, "cutoff", param);
+            case POSTERIZE -> PWebGPU.computeSetUInt(filterId, "levels", (int) param);
+            default        -> { }
+        }
+        PWebGPU.graphicsApplyFilter(graphicsId, filterId);
+    }
+
+    @Override
+    public void filter(PShader shader) {
+        if (graphicsId == 0 || !(shader instanceof PShaderWebGPU sh)) {
+            return;
+        }
+        PWebGPU.graphicsApplyFilter(graphicsId, sh.filterId());
+    }
+
+    private static long builtinFilter(int kind) {
+        return switch (kind) {
+            case BLUR      -> PWebGPU.filterBlur();
+            case INVERT    -> PWebGPU.filterInvert();
+            case GRAY      -> PWebGPU.filterGray();
+            case THRESHOLD -> PWebGPU.filterThreshold();
+            case POSTERIZE -> PWebGPU.filterPosterize();
+            case OPAQUE    -> PWebGPU.filterOpaque();
+            case ERODE     -> PWebGPU.filterErode();
+            case DILATE    -> PWebGPU.filterDilate();
+            default        -> 0;
+        };
     }
 
     // ── Text ────────────────────────────────────────────────────────────

@@ -50,7 +50,13 @@ public class PParticlesWebGPU implements processing.core.PParticles {
     private float noiseTime = 0;
 
     private PComputeWebGPU builtin(int kind) {
-        return builtins.computeIfAbsent(kind, k -> new PComputeWebGPU(kernelFactory(k)));
+        return builtins.computeIfAbsent(kind, k -> newKernel(k));
+    }
+
+    private static PComputeWebGPU newKernel(int kind) {
+        PComputeWebGPU c = new PComputeWebGPU(kernelFactory(kind));
+        c.flockKernel = kind == FLOCK;
+        return c;
     }
 
     private static long kernelFactory(int kind) {
@@ -78,7 +84,7 @@ public class PParticlesWebGPU implements processing.core.PParticles {
     }
 
     public PCompute createKernel(int kind) {
-        return new PComputeWebGPU(kernelFactory(kind));
+        return newKernel(kind);
     }
 
     PParticlesWebGPU(int capacity, Attribute... attributes) {
@@ -214,7 +220,7 @@ public class PParticlesWebGPU implements processing.core.PParticles {
         c.set("scale", scale);
         c.set("strength", strength);
         c.set("time", time);
-        c.set("curl", curl ? 1 : 0);
+        c.set("divergence_free", curl);
         apply(c);
     }
 
@@ -224,7 +230,7 @@ public class PParticlesWebGPU implements processing.core.PParticles {
 
     public void flock(float neighborDistance, float separationDistance) {
         PComputeWebGPU c = builtin(FLOCK);
-        c.set("nbr_distance", neighborDistance);
+        c.set("neighbor_distance", neighborDistance);
         c.set("sep_distance", separationDistance);
         apply(c);
     }
@@ -339,7 +345,54 @@ public class PParticlesWebGPU implements processing.core.PParticles {
     }
 
     public void apply(PCompute compute) {
-        PWebGPU.particlesApply(id, ((PComputeWebGPU) compute).id());
+        PComputeWebGPU c = (PComputeWebGPU) compute;
+        if (c.flockKernel) {
+            // Flock reads the neighbor grid; this builds and binds it first.
+            PWebGPU.particlesFlock(id, c.id());
+        } else {
+            PWebGPU.particlesApply(id, c.id());
+        }
+    }
+
+    /**
+     * Apply a compute kernel over this field with {@code primitives}' output
+     * buffers bound under the WESL {@code processing::prims} reserved names,
+     * so the kernel can add points/lines/triangles to the target.
+     */
+    public void apply(PCompute compute, PPrimitives primitives) {
+        PWebGPU.particlesPrimitivesApply(primitives.target(), ((PComputeWebGPU) compute).id());
+    }
+
+    /**
+     * Create a dynamic-topology target over this field. {@code topology} is
+     * {@code "points"}, {@code "lines"}, or {@code "triangles"}; capacity is
+     * counted in primitives. Kernels applied with
+     * {@link #apply(PCompute, PPrimitives)} add primitives to it, and
+     * {@link PGraphicsWebGPU#particles(PPrimitives)} draws them.
+     */
+    public PPrimitives primitives(String topology, int capacity) {
+        int topo = switch (topology.toLowerCase()) {
+            case "points" -> 0;
+            case "lines" -> 1;
+            case "triangles" -> 3;
+            default -> throw new IllegalArgumentException(
+                "primitives(): unknown topology \"" + topology + "\" (points, lines, or triangles)");
+        };
+        long target = PWebGPU.particlesPrimitivesCreate(id, topo, capacity);
+        long field = PWebGPU.particlesPrimitivesField(target);
+        return new PPrimitives(target, field, topo, capacity);
+    }
+
+    /**
+     * Create a uniform spatial hash grid over this field for GPU neighbor
+     * queries, sized to the field's capacity. The grid spans
+     * {@code dims * cellSize} from {@code (minX, minY, minZ)}.
+     */
+    public PGrid createGrid(float minX, float minY, float minZ,
+                            float cellSize, int dimsX, int dimsY, int dimsZ) {
+        return new PGrid(
+            PWebGPU.particlesGridCreate(id, minX, minY, minZ, cellSize, dimsX, dimsY, dimsZ),
+            cellSize);
     }
 
     public void emit(int n, Map<Attribute, float[]> data) {

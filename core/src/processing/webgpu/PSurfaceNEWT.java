@@ -159,7 +159,8 @@ public class PSurfaceNEWT implements PSurface {
             // here we lock everything to a single thread that the draw
             // loop will then keep using each frame.
             runOnAppKitMain(() -> {
-                PWebGPU.init();
+                // Asset root for relative shader/image/gltf load paths.
+                PWebGPU.init(sketch.sketchPath());
                 webgpu.initWebGPUSurface(windowHandle, displayHandle,
                         width, height, scaleFactor);
             });

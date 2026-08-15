@@ -26,6 +26,22 @@ public class PWebGPU {
         checkError();
     }
 
+    /**
+     * Initialize with an asset root directory: relative paths passed to
+     * {@link #shaderLoad} (and image/gltf loads) resolve against it.
+     * Typically the sketch folder.
+     */
+    public static void init(String assetRoot) {
+        if (assetRoot == null || assetRoot.isEmpty()) {
+            init();
+            return;
+        }
+        try (Arena arena = Arena.ofConfined()) {
+            processing_init_with_asset_root(arena.allocateFrom(assetRoot));
+            checkError();
+        }
+    }
+
     public static void exit() {
         processing_exit((byte) 0);
         checkError();
@@ -735,6 +751,77 @@ public class PWebGPU {
         checkError();
     }
 
+    // ── Filters ─────────────────────────────────────────────────────────
+
+    public static void graphicsApplyFilter(long graphicsId, long filterId) {
+        processing_graphics_apply_filter(graphicsId, filterId);
+        checkError();
+    }
+
+    public static long filterCreate(long shaderId) {
+        long id = processing_filter_create(shaderId);
+        checkError();
+        return id;
+    }
+
+    public static void filterDestroy(long filterId) {
+        processing_filter_destroy(filterId);
+        checkError();
+    }
+
+    public static void filterSetPasses(long filterId, int passes) {
+        processing_filter_set_passes(filterId, passes);
+        checkError();
+    }
+
+    public static long filterBlur() {
+        long id = processing_filter_blur();
+        checkError();
+        return id;
+    }
+
+    public static long filterInvert() {
+        long id = processing_filter_invert();
+        checkError();
+        return id;
+    }
+
+    public static long filterGray() {
+        long id = processing_filter_gray();
+        checkError();
+        return id;
+    }
+
+    public static long filterThreshold() {
+        long id = processing_filter_threshold();
+        checkError();
+        return id;
+    }
+
+    public static long filterPosterize() {
+        long id = processing_filter_posterize();
+        checkError();
+        return id;
+    }
+
+    public static long filterOpaque() {
+        long id = processing_filter_opaque();
+        checkError();
+        return id;
+    }
+
+    public static long filterErode() {
+        long id = processing_filter_erode();
+        checkError();
+        return id;
+    }
+
+    public static long filterDilate() {
+        long id = processing_filter_dilate();
+        checkError();
+        return id;
+    }
+
     /**
      * Unproject a screen coordinate to world space. `depth` is in `[0, 1]`
      * where 0 = near plane, 1 = far plane. Returns `{ x, y, z }`.
@@ -893,6 +980,54 @@ public class PWebGPU {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment nameSegment = arena.allocateFrom(name);
             processing_shader_set_vec4(computeId, nameSegment, x, y, z, w);
+            checkError();
+        }
+    }
+
+    public static void computeSetIVec2(long computeId, String name, int x, int y) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment nameSegment = arena.allocateFrom(name);
+            processing_shader_set_ivec2(computeId, nameSegment, x, y);
+            checkError();
+        }
+    }
+
+    public static void computeSetIVec3(long computeId, String name, int x, int y, int z) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment nameSegment = arena.allocateFrom(name);
+            processing_shader_set_ivec3(computeId, nameSegment, x, y, z);
+            checkError();
+        }
+    }
+
+    public static void computeSetIVec4(long computeId, String name, int x, int y, int z, int w) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment nameSegment = arena.allocateFrom(name);
+            processing_shader_set_ivec4(computeId, nameSegment, x, y, z, w);
+            checkError();
+        }
+    }
+
+    public static void computeSetUVec2(long computeId, String name, int x, int y) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment nameSegment = arena.allocateFrom(name);
+            processing_shader_set_uvec2(computeId, nameSegment, x, y);
+            checkError();
+        }
+    }
+
+    public static void computeSetUVec3(long computeId, String name, int x, int y, int z) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment nameSegment = arena.allocateFrom(name);
+            processing_shader_set_uvec3(computeId, nameSegment, x, y, z);
+            checkError();
+        }
+    }
+
+    public static void computeSetUVec4(long computeId, String name, int x, int y, int z, int w) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment nameSegment = arena.allocateFrom(name);
+            processing_shader_set_uvec4(computeId, nameSegment, x, y, z, w);
             checkError();
         }
     }
@@ -1148,9 +1283,65 @@ public class PWebGPU {
         checkError();
     }
 
+    public static void particlesFlock(long particlesId, long computeId) {
+        processing_particles_flock(particlesId, computeId);
+        checkError();
+    }
+
     public static void particlesDraw(long graphicsId, long particlesId, long geometryId) {
         processing_particles_draw(graphicsId, particlesId, geometryId);
         checkError();
+    }
+
+    /** geometryId 0 draws raw vertices with the given topology instead of instanced geometry. */
+    public static void particlesDrawTopology(long graphicsId, long particlesId, long geometryId, int topology) {
+        processing_particles_draw_topology(graphicsId, particlesId, geometryId, topology);
+        checkError();
+    }
+
+    public static long particlesGridCreate(long particlesId, float minX, float minY, float minZ,
+                                           float cellSize, int dimsX, int dimsY, int dimsZ) {
+        long handle = processing_particles_grid_create(particlesId, minX, minY, minZ, cellSize, dimsX, dimsY, dimsZ);
+        checkError();
+        return handle;
+    }
+
+    public static void particlesGridBuild(long gridHandle, long positionBufferId) {
+        processing_particles_grid_build(gridHandle, positionBufferId);
+        checkError();
+    }
+
+    public static void particlesGridBind(long gridHandle, long computeId) {
+        processing_particles_grid_bind(gridHandle, computeId);
+        checkError();
+    }
+
+    public static void particlesGridDestroy(long gridHandle) {
+        processing_particles_grid_destroy(gridHandle);
+        checkError();
+    }
+
+    public static long particlesPrimitivesCreate(long particlesId, int topology, int capacityPrims) {
+        long target = processing_particles_primitives_create(particlesId, topology, capacityPrims);
+        checkError();
+        return target;
+    }
+
+    public static void particlesPrimitivesApply(long targetId, long computeId) {
+        processing_particles_primitives_apply(targetId, computeId);
+        checkError();
+    }
+
+    public static long particlesPrimitivesField(long targetId) {
+        long field = processing_particles_primitives_field(targetId);
+        checkError();
+        return field;
+    }
+
+    public static int particlesPrimitivesAttempted(long targetId) {
+        int attempted = processing_particles_primitives_attempted(targetId);
+        checkError();
+        return attempted;
     }
 
     public static void fillBuffer(long graphicsId, long bufferId) {

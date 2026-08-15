@@ -149,6 +149,13 @@ public class PShapeWebGPU extends PShape {
      */
     @Override
     public void fill(int rgb) {
+        // Match PGraphics color semantics: an int with no alpha bits and a
+        // value within gray range is a grayscale value, not a packed color —
+        // so fill(255) is white, not 0x000000FF blue.
+        if ((rgb & 0xff000000) == 0 && rgb <= 255) {
+            fill((float) rgb);
+            return;
+        }
         colorR = ((rgb >> 16) & 0xFF) / 255f;
         colorG = ((rgb >> 8) & 0xFF) / 255f;
         colorB = (rgb & 0xFF) / 255f;

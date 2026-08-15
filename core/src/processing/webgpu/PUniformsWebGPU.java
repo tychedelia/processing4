@@ -22,17 +22,17 @@ abstract class PUniformsWebGPU implements PUniforms {
 
     @Override
     public void set(String name, int x, int y) {
-        PWebGPU.computeSetFloat2(id(), name, x, y);
+        PWebGPU.computeSetIVec2(id(), name, x, y);
     }
 
     @Override
     public void set(String name, int x, int y, int z) {
-        PWebGPU.computeSetFloat3(id(), name, x, y, z);
+        PWebGPU.computeSetIVec3(id(), name, x, y, z);
     }
 
     @Override
     public void set(String name, int x, int y, int z, int w) {
-        PWebGPU.computeSetFloat4(id(), name, x, y, z, w);
+        PWebGPU.computeSetIVec4(id(), name, x, y, z, w);
     }
 
     @Override
@@ -67,17 +67,17 @@ abstract class PUniformsWebGPU implements PUniforms {
 
     @Override
     public void set(String name, boolean x, boolean y) {
-        PWebGPU.computeSetFloat2(id(), name, x ? 1 : 0, y ? 1 : 0);
+        PWebGPU.computeSetUVec2(id(), name, x ? 1 : 0, y ? 1 : 0);
     }
 
     @Override
     public void set(String name, boolean x, boolean y, boolean z) {
-        PWebGPU.computeSetFloat3(id(), name, x ? 1 : 0, y ? 1 : 0, z ? 1 : 0);
+        PWebGPU.computeSetUVec3(id(), name, x ? 1 : 0, y ? 1 : 0, z ? 1 : 0);
     }
 
     @Override
     public void set(String name, boolean x, boolean y, boolean z, boolean w) {
-        PWebGPU.computeSetFloat4(id(), name, x ? 1 : 0, y ? 1 : 0, z ? 1 : 0, w ? 1 : 0);
+        PWebGPU.computeSetUVec4(id(), name, x ? 1 : 0, y ? 1 : 0, z ? 1 : 0, w ? 1 : 0);
     }
 
     @Override
@@ -89,9 +89,9 @@ abstract class PUniformsWebGPU implements PUniforms {
     public void set(String name, int[] vec, int ncoords) {
         switch (ncoords) {
             case 1 -> PWebGPU.computeSetInt(id(), name, vec[0]);
-            case 2 -> PWebGPU.computeSetFloat2(id(), name, vec[0], vec[1]);
-            case 3 -> PWebGPU.computeSetFloat3(id(), name, vec[0], vec[1], vec[2]);
-            case 4 -> PWebGPU.computeSetFloat4(id(), name, vec[0], vec[1], vec[2], vec[3]);
+            case 2 -> PWebGPU.computeSetIVec2(id(), name, vec[0], vec[1]);
+            case 3 -> PWebGPU.computeSetIVec3(id(), name, vec[0], vec[1], vec[2]);
+            case 4 -> PWebGPU.computeSetIVec4(id(), name, vec[0], vec[1], vec[2], vec[3]);
             default -> throw unsupported("int arrays longer than 4");
         }
     }
@@ -120,11 +120,15 @@ abstract class PUniformsWebGPU implements PUniforms {
 
     @Override
     public void set(String name, boolean[] boolvec, int ncoords) {
-        float[] f = new float[ncoords];
-        for (int i = 0; i < ncoords; i++) {
-            f[i] = boolvec[i] ? 1 : 0;
+        switch (ncoords) {
+            case 1 -> PWebGPU.computeSetUInt(id(), name, boolvec[0] ? 1 : 0);
+            case 2 -> PWebGPU.computeSetUVec2(id(), name, boolvec[0] ? 1 : 0, boolvec[1] ? 1 : 0);
+            case 3 -> PWebGPU.computeSetUVec3(id(), name, boolvec[0] ? 1 : 0, boolvec[1] ? 1 : 0,
+                    boolvec[2] ? 1 : 0);
+            case 4 -> PWebGPU.computeSetUVec4(id(), name, boolvec[0] ? 1 : 0, boolvec[1] ? 1 : 0,
+                    boolvec[2] ? 1 : 0, boolvec[3] ? 1 : 0);
+            default -> throw unsupported("boolean arrays longer than 4");
         }
-        set(name, f, ncoords);
     }
 
     @Override

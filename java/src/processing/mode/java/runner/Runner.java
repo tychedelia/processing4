@@ -294,6 +294,17 @@ public class Runner implements MessageConsumer {
   }
 
 
+  /** The selected WEBGPU surface — "glfw", or the "newt" default — or null when
+   *  the sketch isn't using the WEBGPU renderer. */
+  private String webgpuSurface() {
+    if (!"WEBGPU".equals(build.getSketchRenderer())) {
+      return null;
+    }
+    String surface = Preferences.get("run.webgpu.surface");
+    return (surface == null || surface.isBlank()) ? "newt" : surface.trim().toLowerCase();
+  }
+
+
   protected StringList getMachineParams() {
     StringList params = new StringList();
 
@@ -342,9 +353,17 @@ public class Runner implements MessageConsumer {
       // No longer needed / doesn't seem to do anything differently
       //params.append("-Dcom.apple.mrj.application.apple.menu.about.name=" +
       //              build.getSketchClassName());
+    }
 
-      if ("WEBGPU".equals(build.getSketchRenderer())) {
+    // WEBGPU surface selection. NEWT (default) is AWT-cooperative — AWT pumps
+    // NSApp on macOS thread 0 — so it takes no special flags. GLFW is AWT-free
+    // and must own thread 0 itself.
+    String webgpuSurface = webgpuSurface();
+    if (webgpuSurface != null) {
+      params.append("-Dprocessing.webgpu.surface=" + webgpuSurface);
+      if ("glfw".equals(webgpuSurface) && Platform.isMacOS()) {
         params.append("-XstartOnFirstThread");
+        params.append("-Djava.awt.headless=true");
       }
     }
     /*
@@ -516,8 +535,10 @@ public class Runner implements MessageConsumer {
       }
       */
 
-      // TODO: excise AWT to make webgpu work properly
-      params.append(PApplet.ARGS_DISABLE_AWT);
+      // The GLFW surface runs AWT-free; NEWT (default) needs AWT.
+      if ("glfw".equals(webgpuSurface())) {
+        params.append(PApplet.ARGS_DISABLE_AWT);
+      }
 
       params.append(build.getSketchClassName());
     }

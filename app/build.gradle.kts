@@ -422,7 +422,14 @@ compose.desktop.application.nativeDistributions.appResourcesRootDir.set(composeR
 tasks.register<Copy>("includeCore"){
     val core = project(":core")
     dependsOn(core.tasks.jar)
-    from(core.layout.buildDirectory.dir("libs"))
+    // Bundle ONLY the unversioned core.jar. The libs dir also holds the
+    // Maven publish artifacts (core-<version>.jar and -sources.jar); those
+    // are stale relative to core.jar and, on the runtime classpath, their
+    // older PConstants/PApplet shadow core.jar — so new constants like
+    // FLOCK/BOUNDS "cannot be resolved". Keeping one core jar avoids that.
+    from(core.layout.buildDirectory.dir("libs")) {
+        include("core.jar")
+    }
     from(core.configurations.runtimeClasspath)
     into(composeResources("core/library"))
 }
@@ -446,9 +453,17 @@ tasks.register<Copy>("includeJdk") {
     from(jdkHome)
     destinationDir = composeResources("jdk").get().asFile
 
-    fileTree(destinationDir).files.forEach { file ->
-        file.setWritable(true, false)
-        file.setReadable(true, false)
+    // The bundled JDK ships read-only files (e.g. lib/server/classes.jsa).
+    // Copy preserves those bits, so a later prepareAppResources copy cannot
+    // overwrite its stale destination and fails with "Permission denied".
+    // Run this AFTER the copy (doLast), over the populated destination —
+    // the previous fileTree(destinationDir) form ran at configuration time,
+    // before any file existed, so it fixed nothing.
+    doLast {
+        destinationDir.walkTopDown().forEach { file ->
+            file.setWritable(true, false)
+            file.setReadable(true, false)
+        }
     }
 }
 tasks.register<Copy>("includeSharedAssets"){

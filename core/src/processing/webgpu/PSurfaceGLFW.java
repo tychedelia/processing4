@@ -94,6 +94,14 @@ public class PSurfaceGLFW implements PSurface {
         GLFW.glfwWindowHint(GLFW.GLFW_CLIENT_API, GLFW.GLFW_NO_API);
         GLFW.glfwWindowHint(GLFW.GLFW_VISIBLE, GLFW.GLFW_FALSE);
         GLFW.glfwWindowHint(GLFW.GLFW_RESIZABLE, GLFW.GLFW_FALSE);
+        // Always-on-top: on macOS the runtime glfwSetWindowAttrib(GLFW_FLOATING)
+        // is unreliable when the JVM isn't an activated foreground app (this one
+        // is launched as a child process), so honor floating as a creation-time
+        // hint instead. Requested via -Dprocessing.webgpu.floating=true (Quil
+        // sets it from the sketch's keep-on-top option in settings()).
+        if ("true".equals(System.getProperty("processing.webgpu.floating"))) {
+            GLFW.glfwWindowHint(GLFW.GLFW_FLOATING, GLFW.GLFW_TRUE);
+        }
 
         window = GLFW.glfwCreateWindow(sketch.sketchWidth(), sketch.sketchHeight(), "Processing",
                 MemoryUtil.NULL, MemoryUtil.NULL);
@@ -108,7 +116,8 @@ public class PSurfaceGLFW implements PSurface {
         initListeners();
 
         if (graphics instanceof PGraphicsWebGPU webgpu) {
-            PWebGPU.init();
+            // Asset root for relative shader/image/gltf load paths.
+            PWebGPU.init(sketch.sketchPath());
 
             long windowHandle = getWindowHandle();
             long displayHandle = getDisplayHandle();
@@ -121,7 +130,10 @@ public class PSurfaceGLFW implements PSurface {
     }
 
     protected void initListeners() {
-        long surfaceId = getSurfaceId();
+        // NOTE: the WebGPU surface doesn't exist yet when listeners are
+        // registered (setSize creates it after this returns), so callbacks
+        // must fetch the surface id at event time — capturing it here would
+        // pin it to 0 and silently drop every native input event.
 
         // NOTE: GLFW.glfwSet*Callback returns the *previous* callback, not the
         // new one. We must keep a strong Java reference to each new callback
@@ -174,6 +186,7 @@ public class PSurfaceGLFW implements PSurface {
             };
             currentModifiers = glfwModsToProcessing(mods);
             boolean pressed = (action == GLFW.GLFW_PRESS);
+            long surfaceId = getSurfaceId();
             if (surfaceId != 0 && peButton != 0) {
                 byte btn = (byte) (peButton == PConstants.LEFT ? 0
                         : peButton == PConstants.CENTER ? 1 : 2);
@@ -193,6 +206,7 @@ public class PSurfaceGLFW implements PSurface {
         GLFW.glfwSetMouseButtonCallback(window, mouseButtonCallback);
 
         scrollCallback = GLFWScrollCallback.create((win, xoffset, yoffset) -> {
+            long surfaceId = getSurfaceId();
             if (surfaceId != 0) {
                 PWebGPU.inputScroll(surfaceId, (float) xoffset, (float) yoffset);
             }
@@ -209,6 +223,7 @@ public class PSurfaceGLFW implements PSurface {
 
         keyCallback = GLFWKeyCallback.create((win, key, scancode, action, mods) -> {
             currentModifiers = glfwModsToProcessing(mods);
+            long surfaceId = getSurfaceId();
             if (surfaceId != 0 && action != GLFW.GLFW_REPEAT) {
                 PWebGPU.inputKey(surfaceId, key, action == GLFW.GLFW_PRESS);
             }
@@ -222,6 +237,7 @@ public class PSurfaceGLFW implements PSurface {
         GLFW.glfwSetKeyCallback(window, keyCallback);
 
         charCallback = GLFWCharCallback.create((win, codepoint) -> {
+            long surfaceId = getSurfaceId();
             if (surfaceId != 0) {
                 PWebGPU.inputChar(surfaceId, 0, codepoint);
             }
@@ -234,6 +250,7 @@ public class PSurfaceGLFW implements PSurface {
         GLFW.glfwSetCharCallback(window, charCallback);
 
         cursorEnterCallback = GLFWCursorEnterCallback.create((win, entered) -> {
+            long surfaceId = getSurfaceId();
             if (surfaceId != 0) {
                 if (entered) PWebGPU.inputCursorEnter(surfaceId);
                 else PWebGPU.inputCursorLeave(surfaceId);
@@ -242,6 +259,7 @@ public class PSurfaceGLFW implements PSurface {
         GLFW.glfwSetCursorEnterCallback(window, cursorEnterCallback);
 
         windowFocusCallback = GLFWWindowFocusCallback.create((win, focused) -> {
+            long surfaceId = getSurfaceId();
             if (surfaceId != 0) PWebGPU.inputFocus(surfaceId, focused);
         });
         GLFW.glfwSetWindowFocusCallback(window, windowFocusCallback);

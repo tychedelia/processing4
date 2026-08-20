@@ -1,3 +1,4 @@
 [submodule "libprocessing"]
 	path = libprocessing
-	url = https://github.com/processing/libprocessing
+	url = https://github.com/tychedelia/libprocessing
+	branch = integration
